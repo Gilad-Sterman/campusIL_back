@@ -79,7 +79,7 @@ dist
 
 # Gatsby files
 .cache/
-public
+# public - removed to allow tracking of built frontend files
 
 # Storybook build outputs
 .out
@@ -180,10 +180,7 @@ Thumbs.db
 *.bak
 *.tmp
 
-# Built frontend files (since they're built from /front)
-public/assets/
-public/index.html
-public/vite.svg
+# Built frontend files are now tracked for deployment
 
 # Local development files
 .env.local
