@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import universityRoutes from './routes/university.js';
 import quizRoutes from './routes/quiz.js';
+import authRoutes from './routes/auth.js';
 import { requestLogger } from './middleware/logging.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { testConnection } from './config/db.js';
@@ -59,6 +60,7 @@ app.get('/health', (req, res) => {
 });
 
 // API routes
+app.use('/api/auth', authRoutes);
 app.use('/api/universities', universityRoutes);
 app.use('/api/quiz', quizRoutes);
 
