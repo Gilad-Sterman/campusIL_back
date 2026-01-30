@@ -7,6 +7,7 @@ import path from 'path';
 import universityRoutes from './routes/university.js';
 import quizRoutes from './routes/quiz.js';
 import authRoutes from './routes/auth.js';
+import adminRoutes from './routes/admin.js';
 import { requestLogger } from './middleware/logging.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { testConnection } from './config/db.js';
@@ -38,7 +39,7 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 500, // limit each IP to 500 requests per windowMs
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use('/api', limiter);
@@ -52,8 +53,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  res.status(200).json({
+    status: 'OK',
     message: 'Campus Israel API is running',
     timestamp: new Date().toISOString()
   });
@@ -63,6 +64,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/universities', universityRoutes);
 app.use('/api/quiz', quizRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Serve static files from public directory (built frontend)
 app.use(express.static('public'));
@@ -73,7 +75,7 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return notFoundHandler(req, res);
   }
-  
+
   // Serve React app for all other routes (SPA routing)
   res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
 });
@@ -85,7 +87,7 @@ app.use(errorHandler);
 app.listen(PORT, async () => {
   console.log(`🚀 Campus Israel API server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  
+
   // Test database connection
   const dbConnected = await testConnection();
   if (dbConnected) {

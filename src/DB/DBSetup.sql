@@ -14,6 +14,7 @@ CREATE TABLE users (
     phone TEXT,
     country TEXT,
     role TEXT NOT NULL DEFAULT 'student',
+    status TEXT NOT NULL DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -50,29 +51,43 @@ CREATE TABLE universities (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     city TEXT NOT NULL,
+    region TEXT,
     description TEXT,
     website_url TEXT,
     application_url TEXT,
     logo_url TEXT,
+    image_url TEXT,
+    tuition_avg_usd INTEGER,
+    living_cost_usd INTEGER,
+    languages TEXT[],
+    status TEXT DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. Programs table
+-- 5. Programs table
 CREATE TABLE programs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     university_id UUID NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     degree_level TEXT NOT NULL,
     field TEXT NOT NULL,
+    discipline TEXT,
     duration_years INTEGER,
+    duration_text TEXT,
     tuition_usd INTEGER,
+    tuition_override_usd INTEGER,
+    living_cost_override_usd INTEGER,
     description TEXT,
     requirements JSONB,
+    doc_requirements TEXT[],
+    languages TEXT[],
     application_url TEXT,
+    image_url TEXT,
+    status TEXT DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 5. Saved programs table
+-- 6. Saved programs table
 CREATE TABLE saved_programs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -81,7 +96,7 @@ CREATE TABLE saved_programs (
     UNIQUE(user_id, program_id)
 );
 
--- 6. Applications table
+-- 7. Applications table
 CREATE TABLE applications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -96,7 +111,7 @@ CREATE TABLE applications (
     UNIQUE(user_id, program_id)
 );
 
--- 7. Documents table
+-- 8. Documents table
 CREATE TABLE documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -111,7 +126,7 @@ CREATE TABLE documents (
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 8. Appointments table
+-- 9. Appointments table
 CREATE TABLE appointments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -124,7 +139,7 @@ CREATE TABLE appointments (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 9. Audit logs table
+-- 10. Audit logs table
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id),
@@ -135,6 +150,30 @@ CREATE TABLE audit_logs (
     new_values JSONB,
     ip_address INET,
     user_agent TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 11. Community configs table (Discord invite links by discipline/region)
+CREATE TABLE community_configs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    discipline TEXT NOT NULL,
+    region TEXT NOT NULL,
+    invite_link TEXT,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(discipline, region)
+);
+
+-- 12. Admin invites table (for staff invitation management)
+CREATE TABLE admin_invites (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT NOT NULL,
+    role TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    invited_by UUID REFERENCES users(id),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -162,9 +201,25 @@ ALTER TABLE appointments ADD CONSTRAINT check_appointment_status
 ALTER TABLE users ADD CONSTRAINT check_user_role 
   CHECK (role IN ('student', 'admin', 'concierge'));
 
+-- User status must be valid
+ALTER TABLE users ADD CONSTRAINT check_user_status 
+  CHECK (status IN ('active', 'blocked'));
+
 -- Program degree level must be valid
 ALTER TABLE programs ADD CONSTRAINT check_degree_level 
   CHECK (degree_level IN ('bachelor', 'master', 'phd'));
+
+-- University status must be valid
+ALTER TABLE universities ADD CONSTRAINT check_university_status 
+  CHECK (status IN ('active', 'inactive'));
+
+-- Program status must be valid
+ALTER TABLE programs ADD CONSTRAINT check_program_status 
+  CHECK (status IN ('active', 'inactive'));
+
+-- Admin invite roles must be valid
+ALTER TABLE admin_invites ADD CONSTRAINT check_invite_role 
+  CHECK (role IN ('admin_view', 'admin_edit', 'concierge'));
 
 -- =============================================================================
 -- PERFORMANCE INDEXES
@@ -174,6 +229,7 @@ ALTER TABLE programs ADD CONSTRAINT check_degree_level
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_created_at ON users(created_at);
 CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_status ON users(status);
 
 -- Quiz lookup
 CREATE INDEX idx_quiz_answers_user_id ON quiz_answers(user_id);
@@ -193,11 +249,17 @@ CREATE INDEX idx_documents_type ON documents(document_type);
 CREATE INDEX idx_programs_university_id ON programs(university_id);
 CREATE INDEX idx_programs_degree_level ON programs(degree_level);
 CREATE INDEX idx_programs_field ON programs(field);
+CREATE INDEX idx_programs_discipline ON programs(discipline);
+CREATE INDEX idx_programs_status ON programs(status);
 
 -- Audit log queries
 CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 CREATE INDEX idx_audit_logs_action ON audit_logs(action);
+
+-- Admin invites queries
+CREATE INDEX idx_admin_invites_token ON admin_invites(token);
+CREATE INDEX idx_admin_invites_email ON admin_invites(email);
 
 -- =============================================================================
 -- HELPER FUNCTIONS FOR RLS
@@ -237,6 +299,19 @@ CREATE POLICY "Users can update own profile" ON users
   FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Admins can manage all users" ON users 
   FOR ALL USING (is_admin(auth.uid()));
+
+-- Quiz progress RLS
+ALTER TABLE quiz_progress ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own quiz progress" ON quiz_progress 
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own quiz progress" ON quiz_progress 
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own quiz progress" ON quiz_progress 
+  FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own quiz progress" ON quiz_progress 
+  FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Admins can view all quiz progress" ON quiz_progress 
+  FOR SELECT USING (is_admin(auth.uid()));
 
 -- Quiz answers RLS
 ALTER TABLE quiz_answers ENABLE ROW LEVEL SECURITY;
@@ -302,17 +377,33 @@ CREATE POLICY "Admins can view audit logs" ON audit_logs
 CREATE POLICY "System can insert audit logs" ON audit_logs 
   FOR INSERT WITH CHECK (true);
 
+-- Community configs RLS
+ALTER TABLE community_configs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Community configs are publicly readable" ON community_configs 
+  FOR SELECT USING (true);
+CREATE POLICY "Admins can manage community configs" ON community_configs 
+  FOR ALL USING (is_admin(auth.uid()));
+
+-- Admin invites RLS
+ALTER TABLE admin_invites ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins can view all invites" ON admin_invites 
+  FOR SELECT USING (is_admin(auth.uid()));
+CREATE POLICY "Admins can create invites" ON admin_invites 
+  FOR INSERT WITH CHECK (is_admin(auth.uid()));
+CREATE POLICY "Admins can manage invites" ON admin_invites 
+  FOR ALL USING (is_admin(auth.uid()));
+
 -- =============================================================================
 -- INITIAL DATA (OPTIONAL)
 -- =============================================================================
 
 -- Insert sample universities (uncomment if needed)
 /*
-INSERT INTO universities (name, city, description, website_url) VALUES
-('Tel Aviv University', 'Tel Aviv', 'Leading research university in Israel', 'https://english.tau.ac.il/'),
-('Hebrew University of Jerusalem', 'Jerusalem', 'Premier university with strong international programs', 'https://new.huji.ac.il/en'),
-('Technion - Israel Institute of Technology', 'Haifa', 'Top technical university specializing in engineering and technology', 'https://www.technion.ac.il/en/'),
-('Ben-Gurion University of the Negev', 'Beer Sheva', 'Research university known for innovation and desert studies', 'https://in.bgu.ac.il/en/Pages/default.aspx');
+INSERT INTO universities (name, city, region, description, website_url, status) VALUES
+('Tel Aviv University', 'Tel Aviv', 'Center', 'Leading research university in Israel', 'https://english.tau.ac.il/', 'active'),
+('Hebrew University of Jerusalem', 'Jerusalem', 'Center', 'Premier university with strong international programs', 'https://new.huji.ac.il/en', 'active'),
+('Technion - Israel Institute of Technology', 'Haifa', 'North', 'Top technical university specializing in engineering and technology', 'https://www.technion.ac.il/en/', 'active'),
+('Ben-Gurion University of the Negev', 'Beer Sheva', 'South', 'Research university known for innovation and desert studies', 'https://in.bgu.ac.il/en/Pages/default.aspx', 'active');
 */
 
 -- =============================================================================

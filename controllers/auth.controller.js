@@ -97,6 +97,7 @@ export const register = async (req, res) => {
       lastName: userProfile.last_name,
       phone: userProfile.phone,
       country: userProfile.country,
+      role: userProfile.role,
       createdAt: userProfile.created_at
     };
 
@@ -161,6 +162,7 @@ export const login = async (req, res) => {
     }
 
     // Return user data
+    // Return user data
     const userData = {
       id: userProfile.id,
       email: userProfile.email,
@@ -168,6 +170,7 @@ export const login = async (req, res) => {
       lastName: userProfile.last_name,
       phone: userProfile.phone,
       country: userProfile.country,
+      role: userProfile.role,
       createdAt: userProfile.created_at
     };
 
@@ -191,7 +194,7 @@ export const login = async (req, res) => {
 export const logout = async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
-    
+
     if (token) {
       // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
@@ -227,6 +230,7 @@ export const getProfile = async (req, res) => {
     }
 
     // Return user data
+    // Return user data
     const userData = {
       id: user.id,
       email: user.email,
@@ -234,6 +238,7 @@ export const getProfile = async (req, res) => {
       lastName: user.last_name,
       phone: user.phone,
       country: user.country,
+      role: user.role,
       createdAt: user.created_at
     };
 
@@ -381,7 +386,7 @@ export const resetPassword = async (req, res) => {
       // Simple JWT decode (without verification since Supabase will verify)
       const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
       userId = payload.sub;
-      
+
       // Check if token is for password recovery
       if (!payload.aud || payload.aud !== 'authenticated') {
         throw new Error('Invalid token type');
