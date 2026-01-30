@@ -24,7 +24,7 @@ class QuizService {
       ipAddress,
       answers: [],
       currentQuestion: 1,
-      totalQuestions: 30,
+      totalQuestions: 5, // Updated for testing - was 30
       startedAt: new Date().toISOString(),
       status: 'in_progress'
     };
@@ -37,7 +37,7 @@ class QuizService {
     return {
       sessionId,
       currentQuestion: 1,
-      totalQuestions: 30,
+      totalQuestions: 5, // Updated for testing - was 30
       status: 'started'
     };
   }
@@ -72,13 +72,13 @@ class QuizService {
       answers.push({ questionId, answer, timestamp: new Date().toISOString() });
     }
 
-    // Calculate next question
-    const currentQuestion = Math.min(questionId + 1, 30);
-    const isComplete = answers.length === 30;
+    // Calculate next question - Updated for testing (was 30)
+    const currentQuestion = Math.min(questionId + 1, 5);
+    const isComplete = answers.length === 5;
 
     const updatedData = {
       answers,
-      currentQuestion: isComplete ? 30 : currentQuestion,
+      currentQuestion: isComplete ? 5 : currentQuestion,
       status: isComplete ? 'completed' : 'in_progress',
       lastAnsweredAt: new Date().toISOString()
     };
@@ -207,26 +207,257 @@ class QuizService {
    * @param {string} userId - User ID
    */
   async getUserQuizState(userId) {
-    const { data, error } = await supabase
+    // First check for completed quiz
+    const { data: completedQuiz, error: completedError } = await supabase
       .from('quiz_answers')
       .select('*')
       .eq('user_id', userId)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-      throw new Error(`Database error: ${error.message}`);
+    if (completedError && completedError.code !== 'PGRST116') {
+      throw new Error(`Database error checking completed quiz: ${completedError.message}`);
     }
 
-    if (!data) {
-      return { status: 'not_started', canTakeQuiz: true };
+    if (completedQuiz) {
+      return {
+        status: 'completed',
+        canTakeQuiz: false,
+        completedAt: completedQuiz.completed_at,
+        quizId: completedQuiz.id,
+        hasResults: true,
+        answers: completedQuiz.answers
+      };
+    }
+
+    // Check for in-progress quiz
+    const { data: progressQuiz, error: progressError } = await supabase
+      .from('quiz_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (progressError && progressError.code !== 'PGRST116') {
+      throw new Error(`Database error checking quiz progress: ${progressError.message}`);
+    }
+
+    if (progressQuiz) {
+      return {
+        status: 'in_progress',
+        canTakeQuiz: true,
+        currentQuestion: progressQuiz.current_question,
+        answers: progressQuiz.answers,
+        startedAt: progressQuiz.started_at,
+        progressId: progressQuiz.id,
+        hasResults: false
+      };
+    }
+
+    return { 
+      status: 'not_started', 
+      canTakeQuiz: true 
+    };
+  }
+
+  /**
+   * Save quiz progress for authenticated user
+   * @param {string} userId - User ID
+   * @param {number} currentQuestion - Current question number
+   * @param {Array} answers - Array of answers so far
+   */
+  async saveQuizProgress(userId, currentQuestion, answers) {
+    const progressData = {
+      user_id: userId,
+      status: 'in_progress',
+      current_question: currentQuestion,
+      answers: answers,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('quiz_progress')
+      .upsert(progressData, { 
+        onConflict: 'user_id',
+        returning: 'minimal'
+      });
+
+    if (error) {
+      throw new Error(`Failed to save quiz progress: ${error.message}`);
+    }
+
+    return { success: true, message: 'Progress saved' };
+  }
+
+  /**
+   * Complete quiz and move from progress to answers table
+   * @param {string} userId - User ID
+   * @param {Array} answers - Final answers array
+   */
+  async completeQuizFromProgress(userId, answers) {
+    // Start transaction-like operations
+    try {
+      // Save to quiz_answers
+      const { data: completedQuiz, error: saveError } = await supabase
+        .from('quiz_answers')
+        .insert({
+          user_id: userId,
+          answers: answers,
+          completed_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (saveError) {
+        throw new Error(`Failed to save completed quiz: ${saveError.message}`);
+      }
+
+      // Delete from quiz_progress
+      const { error: deleteError } = await supabase
+        .from('quiz_progress')
+        .delete()
+        .eq('user_id', userId);
+
+      if (deleteError) {
+        console.error('Warning: Failed to clean up quiz progress:', deleteError.message);
+        // Don't throw error here - quiz is saved, cleanup can be done later
+      }
+
+      await this._trackEvent('quiz_completed', { 
+        userId, 
+        userType: 'authenticated',
+        source: 'server_progress'
+      });
+
+      return {
+        success: true,
+        quizId: completedQuiz.id,
+        message: 'Quiz completed successfully'
+      };
+    } catch (error) {
+      throw new Error(`Failed to complete quiz: ${error.message}`);
+    }
+  }
+
+  /**
+   * Transfer anonymous quiz to authenticated user with conflict resolution
+   * @param {string} sessionId - Anonymous session ID
+   * @param {string} userId - User ID
+   * @param {Object} userData - User data
+   */
+  async transferAnonymousQuizWithConflicts(sessionId, userId, userData) {
+    // Get current user state
+    const userState = await this.getUserQuizState(userId);
+    
+    // If user has completed quiz, ignore localStorage transfer
+    if (userState.status === 'completed') {
+      // Clear anonymous session
+      await this.storage.deleteQuizSession(sessionId);
+      return {
+        transferred: false,
+        reason: 'user_has_completed_quiz',
+        message: 'User already has completed quiz, anonymous quiz ignored'
+      };
+    }
+
+    // Get anonymous session
+    const session = await this.storage.getQuizSession(sessionId);
+    if (!session) {
+      return {
+        transferred: false,
+        reason: 'no_anonymous_session',
+        message: 'No anonymous session found'
+      };
+    }
+
+    // Handle different scenarios
+    if (session.status === 'completed') {
+      // Anonymous quiz is completed - save to quiz_answers
+      const quizData = {
+        user_id: userId,
+        answers: session.answers.map(a => a.answer),
+        completed_at: session.lastAnsweredAt || new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('quiz_answers')
+        .insert(quizData)
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Failed to transfer completed quiz: ${error.message}`);
+      }
+
+      // Clear both storages
+      await this.storage.deleteQuizSession(sessionId);
+      if (userState.status === 'in_progress') {
+        await supabase.from('quiz_progress').delete().eq('user_id', userId);
+      }
+
+      await this._trackEvent('quiz_transferred', { 
+        sessionId, 
+        userId, 
+        userType: 'registered',
+        transferType: 'completed'
+      });
+
+      return {
+        transferred: true,
+        wasCompleted: true,
+        quizId: data.id,
+        message: 'Completed quiz transferred to your account'
+      };
+    } else if (session.status === 'in_progress') {
+      // Anonymous quiz is in progress
+      if (userState.status === 'in_progress') {
+        // User has existing progress - compare and use most recent
+        const localProgress = session.answers.length;
+        const serverProgress = userState.answers.length;
+        
+        if (localProgress > serverProgress) {
+          // Local has more progress, update server
+          await this.saveQuizProgress(
+            userId, 
+            session.currentQuestion || localProgress + 1, 
+            session.answers.map(a => a.answer)
+          );
+          await this.storage.deleteQuizSession(sessionId);
+          
+          return {
+            transferred: true,
+            wasCompleted: false,
+            message: 'Local progress merged with server progress'
+          };
+        } else {
+          // Server has more/equal progress, keep server version
+          await this.storage.deleteQuizSession(sessionId);
+          
+          return {
+            transferred: false,
+            reason: 'server_progress_newer',
+            message: 'Server progress is more recent, local progress discarded'
+          };
+        }
+      } else {
+        // No server progress, transfer local progress
+        await this.saveQuizProgress(
+          userId,
+          session.currentQuestion || session.answers.length + 1,
+          session.answers.map(a => a.answer)
+        );
+        await this.storage.deleteQuizSession(sessionId);
+
+        return {
+          transferred: true,
+          wasCompleted: false,
+          message: 'Quiz progress transferred to your account'
+        };
+      }
     }
 
     return {
-      status: 'completed',
-      canTakeQuiz: false,
-      completedAt: data.completed_at,
-      quizId: data.id,
-      hasResults: true
+      transferred: false,
+      reason: 'unknown_session_state',
+      message: 'Unable to determine session state'
     };
   }
 

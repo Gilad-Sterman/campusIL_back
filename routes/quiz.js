@@ -60,6 +60,17 @@ router.post('/transfer', [
 // GET /api/quiz/user-state - Get user's quiz state
 router.get('/user-state', authenticateUser, quizController.getUserQuizState);
 
+// POST /api/quiz/progress - Save quiz progress
+router.post('/progress', authenticateUser, [
+  body('currentQuestion').isInt({ min: 1 }).withMessage('Current question must be a positive integer'),
+  body('answers').isArray().withMessage('Answers must be an array')
+], quizController.saveProgress);
+
+// POST /api/quiz/complete-progress - Complete quiz from progress
+router.post('/complete-progress', authenticateUser, [
+  body('answers').isArray({ min: 5, max: 5 }).withMessage('Answers must be an array of exactly 5 items')
+], quizController.completeFromProgress);
+
 /**
  * System routes
  */

@@ -18,19 +18,34 @@ CREATE TABLE users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 2. Quiz answers table
-CREATE TABLE quiz_answers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    answers JSONB NOT NULL,
-    brilliance_summary TEXT,
-    program_matches JSONB,
-    cost_analysis JSONB,
-    completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id)
+-- 2. Quiz progress table (for in-progress quizzes)
+CREATE TABLE quiz_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress')),
+  current_question INTEGER NOT NULL DEFAULT 1,
+  answers JSONB NOT NULL DEFAULT '[]'::jsonb,
+  started_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  
+  -- Ensure one quiz progress per user
+  UNIQUE(user_id)
 );
 
--- 3. Universities table
+-- 3. Quiz answers table (for completed quizzes only)
+CREATE TABLE quiz_answers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  answers JSONB NOT NULL,
+  completed_at TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  
+  -- Ensure one completed quiz per user
+  UNIQUE(user_id)
+);
+
+-- 4. Universities table
 CREATE TABLE universities (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -127,9 +142,9 @@ CREATE TABLE audit_logs (
 -- DATA VALIDATION CONSTRAINTS
 -- =============================================================================
 
--- Quiz answers must have exactly 30 answers
+-- Add constraint to ensure valid number of answers (5 questions for testing, 30 for production)
 ALTER TABLE quiz_answers ADD CONSTRAINT check_quiz_answers_valid 
-  CHECK (jsonb_array_length(answers) = 30);
+  CHECK (jsonb_array_length(answers) = 5);
 
 -- Application status must be valid
 ALTER TABLE applications ADD CONSTRAINT check_application_status 

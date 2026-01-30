@@ -174,7 +174,7 @@ class QuizController {
    */
   async transferAnonymousQuiz(req, res) {
     try {
-      const { sessionId, userId, userData } = req.body;
+      const { sessionId, userId, userData, resolveConflicts } = req.body;
 
       if (!sessionId || !userId) {
         return res.status(400).json({
@@ -183,22 +183,21 @@ class QuizController {
         });
       }
 
-      const result = await quizService.transferAnonymousQuiz(sessionId, userId, userData);
+      let result;
+      if (resolveConflicts) {
+        // Use new conflict resolution method
+        result = await quizService.transferAnonymousQuizWithConflicts(sessionId, userId, userData);
+      } else {
+        // Use original method for backward compatibility
+        result = await quizService.transferAnonymousQuiz(sessionId, userId, userData);
+      }
       
       res.json({
         success: true,
         data: result
       });
     } catch (error) {
-      console.error('Transfer quiz error:', error);
-      
-      if (error.message.includes('not found') || error.message.includes('not completed')) {
-        return res.status(400).json({
-          error: 'Invalid quiz session',
-          message: error.message
-        });
-      }
-
+      console.error('Transfer anonymous quiz error:', error);
       res.status(500).json({
         error: 'Failed to transfer quiz',
         message: error.message
@@ -232,6 +231,82 @@ class QuizController {
       console.error('Get user quiz state error:', error);
       res.status(500).json({
         error: 'Failed to get quiz state',
+        message: error.message
+      });
+    }
+  }
+
+  /**
+   * Save quiz progress for authenticated user
+   * POST /api/quiz/progress
+   */
+  async saveProgress(req, res) {
+    try {
+      const userId = req.user?.id;
+      const { currentQuestion, answers } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User authentication required'
+        });
+      }
+
+      if (!currentQuestion || !Array.isArray(answers)) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: 'currentQuestion and answers array are required'
+        });
+      }
+
+      const result = await quizService.saveQuizProgress(userId, currentQuestion, answers);
+      
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Save quiz progress error:', error);
+      res.status(500).json({
+        error: 'Failed to save quiz progress',
+        message: error.message
+      });
+    }
+  }
+
+  /**
+   * Complete quiz from progress
+   * POST /api/quiz/complete-progress
+   */
+  async completeFromProgress(req, res) {
+    try {
+      const userId = req.user?.id;
+      const { answers } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User authentication required'
+        });
+      }
+
+      if (!Array.isArray(answers)) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: 'answers array is required'
+        });
+      }
+
+      const result = await quizService.completeQuizFromProgress(userId, answers);
+      
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Complete quiz from progress error:', error);
+      res.status(500).json({
+        error: 'Failed to complete quiz',
         message: error.message
       });
     }

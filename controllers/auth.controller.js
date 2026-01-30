@@ -17,6 +17,29 @@ export const register = async (req, res) => {
 
     const { email, password, firstName, lastName, phone, country } = req.body;
 
+    // Check if user already exists and has taken the quiz
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (existingUser) {
+      // Check if this user has already taken the quiz
+      const { data: existingQuiz, error: quizError } = await supabase
+        .from('quiz_answers')
+        .select('id')
+        .eq('user_id', existingUser.id)
+        .single();
+
+      if (existingQuiz) {
+        return res.status(400).json({
+          success: false,
+          error: "Looks like you've already taken the quiz and received your full report. Please check your email!"
+        });
+      }
+    }
+
     // Create user in Supabase Auth
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
