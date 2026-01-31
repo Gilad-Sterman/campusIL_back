@@ -146,6 +146,63 @@ class UniversityService {
       throw error;
     }
   }
+
+  // Get universities with cost data for Cost Calculator
+  async getUniversitiesWithCosts() {
+    try {
+      const { data, error } = await supabase
+        .from('universities')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) {
+        throw new Error(`Failed to fetch universities with costs: ${error.message}`);
+      }
+
+      // Transform the data to include cost information
+      const universitiesWithCosts = data.map(university => {
+        return {
+          id: university.id,
+          name: university.name,
+          city: university.city,
+          country: university.region || 'Israel',
+          tuition: university.tuition_avg_usd || 0,
+          cityLivingCost: university.living_cost_usd || 0,
+          isUS: university.region === 'United States'
+        };
+      });
+
+      return universitiesWithCosts;
+    } catch (error) {
+      console.error('UniversityService.getUniversitiesWithCosts error:', error);
+      throw error;
+    }
+  }
+
+  // Get travel costs by region
+  async getTravelCosts() {
+    try {
+      const { data, error } = await supabase
+        .from('travel_costs')
+        .select('*')
+        .order('country', { ascending: true });
+
+      if (error) {
+        throw new Error(`Failed to fetch travel costs: ${error.message}`);
+      }
+
+      // Transform to object format
+      const travelCosts = {};
+      data.forEach(item => {
+        travelCosts[item.country] = item.avg_flight_cost_usd;
+      });
+
+      return travelCosts;
+    } catch (error) {
+      console.error('UniversityService.getTravelCosts error:', error);
+      throw error;
+    }
+  }
 }
 
 export default new UniversityService();

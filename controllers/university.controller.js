@@ -122,6 +122,43 @@ class UniversityController {
       });
     }
   }
+
+  // GET /api/universities/costs - Get universities with cost data for Cost Calculator
+  async getUniversitiesWithCosts(req, res) {
+    try {
+      const universities = await universityService.getUniversitiesWithCosts();
+
+      res.status(200).json({
+        success: true,
+        data: universities,
+        count: universities.length
+      });
+    } catch (error) {
+      console.error('UniversityController.getUniversitiesWithCosts error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // GET /api/universities/travel-costs - Get travel costs by region
+  async getTravelCosts(req, res) {
+    try {
+      const travelCosts = await universityService.getTravelCosts();
+
+      res.status(200).json({
+        success: true,
+        data: travelCosts
+      });
+    } catch (error) {
+      console.error('UniversityController.getTravelCosts error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
 }
 
 export default new UniversityController();

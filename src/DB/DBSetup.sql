@@ -38,6 +38,9 @@ CREATE TABLE quiz_answers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   answers JSONB NOT NULL,
+  brilliance_summary TEXT,
+  program_matches JSONB,
+  cost_analysis JSONB,
   completed_at TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
@@ -105,17 +108,17 @@ CREATE TABLE applications (
     external_redirect_url TEXT,
     redirected_at TIMESTAMP WITH TIME ZONE,
     confirmed_at TIMESTAMP WITH TIME ZONE,
+    marked_as_applied_at TIMESTAMP WITH TIME ZONE,
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, program_id)
 );
 
--- 8. Documents table
+-- 8. Documents table (Global document library - users upload once, reuse across applications)
 CREATE TABLE documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    application_id UUID REFERENCES applications(id) ON DELETE CASCADE,
     document_type TEXT NOT NULL,
     original_filename TEXT NOT NULL,
     s3_key TEXT NOT NULL,
@@ -123,6 +126,7 @@ CREATE TABLE documents (
     mime_type TEXT,
     virus_scan_status TEXT DEFAULT 'pending',
     virus_scan_result JSONB,
+    status TEXT DEFAULT 'uploaded',
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -177,6 +181,37 @@ CREATE TABLE admin_invites (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 13. Travel costs table (for cost calculator)
+CREATE TABLE travel_costs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    country TEXT NOT NULL UNIQUE,
+    avg_flight_cost_usd INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 14. Concierges table (for appointment management)
+CREATE TABLE concierges (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    calendar_integration_type TEXT,
+    calendar_integration_data JSONB,
+    is_available BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id)
+);
+
+-- 15. System configs table (for dynamic settings)
+CREATE TABLE system_configs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    config_key TEXT NOT NULL UNIQUE,
+    config_value JSONB NOT NULL,
+    description TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- =============================================================================
 -- DATA VALIDATION CONSTRAINTS
 -- =============================================================================
@@ -208,6 +243,10 @@ ALTER TABLE users ADD CONSTRAINT check_user_status
 -- Program degree level must be valid
 ALTER TABLE programs ADD CONSTRAINT check_degree_level 
   CHECK (degree_level IN ('bachelor', 'master', 'phd'));
+
+-- Document status must be valid
+ALTER TABLE documents ADD CONSTRAINT check_document_status 
+  CHECK (status IN ('uploaded', 'approved', 'rejected', 'pending_review'));
 
 -- University status must be valid
 ALTER TABLE universities ADD CONSTRAINT check_university_status 
@@ -242,8 +281,8 @@ CREATE INDEX idx_applications_created_at ON applications(created_at);
 
 -- Document queries
 CREATE INDEX idx_documents_user_id ON documents(user_id);
-CREATE INDEX idx_documents_application_id ON documents(application_id);
 CREATE INDEX idx_documents_type ON documents(document_type);
+CREATE INDEX idx_documents_user_type ON documents(user_id, document_type);
 
 -- Program search
 CREATE INDEX idx_programs_university_id ON programs(university_id);
@@ -393,9 +432,55 @@ CREATE POLICY "Admins can create invites" ON admin_invites
 CREATE POLICY "Admins can manage invites" ON admin_invites 
   FOR ALL USING (is_admin(auth.uid()));
 
+-- Travel costs RLS (publicly readable)
+ALTER TABLE travel_costs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Travel costs are publicly readable" ON travel_costs 
+  FOR SELECT USING (true);
+CREATE POLICY "Admins can manage travel costs" ON travel_costs 
+  FOR ALL USING (is_admin(auth.uid()));
+
+-- Concierges RLS
+ALTER TABLE concierges ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Concierges can view own profile" ON concierges 
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Concierges can update own profile" ON concierges 
+  FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Admins can manage all concierges" ON concierges 
+  FOR ALL USING (is_admin(auth.uid()));
+
+-- System configs RLS (publicly readable for certain configs)
+ALTER TABLE system_configs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "System configs are publicly readable" ON system_configs 
+  FOR SELECT USING (true);
+CREATE POLICY "Admins can manage system configs" ON system_configs 
+  FOR ALL USING (is_admin(auth.uid()));
+
 -- =============================================================================
 -- INITIAL DATA (OPTIONAL)
 -- =============================================================================
+
+-- Insert system configurations
+INSERT INTO system_configs (config_key, config_value, description) VALUES
+('us_average_costs', '{"tuition": 40000, "living": 20000, "travel": 500}', 'US average university costs for comparison'),
+('discord_general_invite', '{"url": "https://discord.gg/campusisrael", "expires_at": null}', 'General Discord community invite link');
+
+-- Insert sample travel costs for major countries
+INSERT INTO travel_costs (country, avg_flight_cost_usd) VALUES
+('United States', 800),
+('Canada', 900),
+('United Kingdom', 600),
+('Germany', 500),
+('France', 550),
+('Australia', 1200),
+('Brazil', 1000),
+('India', 700),
+('China', 800),
+('Japan', 900),
+('South Korea', 850),
+('Mexico', 600),
+('Argentina', 1100),
+('South Africa', 900),
+('Russia', 700);
 
 -- Insert sample universities (uncomment if needed)
 /*

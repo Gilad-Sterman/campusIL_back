@@ -5,6 +5,12 @@ import { validateUniversityCreate, validateUniversityUpdate, validateUUID } from
 
 const router = express.Router();
 
+// GET /api/universities/costs - Get universities with cost data (public)
+router.get('/costs', universityController.getUniversitiesWithCosts);
+
+// GET /api/universities/travel-costs - Get travel costs by region (public)
+router.get('/travel-costs', universityController.getTravelCosts);
+
 // GET /api/universities - Get all universities (public)
 // Query params: ?stats=true (to include program counts)
 router.get('/', universityController.getAllUniversities);
