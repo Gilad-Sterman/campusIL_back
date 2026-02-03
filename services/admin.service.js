@@ -1,4 +1,5 @@
 import { supabase, supabaseAdmin } from '../config/db.js';
+import crypto from 'crypto';
 
 class AdminService {
     // =============================================
@@ -61,9 +62,105 @@ class AdminService {
             ? docsData.length / new Set(docsData.map(d => d.user_id)).size
             : 0;
 
-        // Top 5 universities by program count (placeholder for page views)
-        // This is static config data, usually not date filtered, but usage data would be.
-        // Keeping as is for now as it's 'top universities by program count' which is static.
+        // Average Time: Quiz → Application (median time in hours)
+        let avgTimeQuery = supabaseAdmin
+            .from('applications')
+            .select(`
+                created_at,
+                user_id,
+                quiz_answers!inner(completed_at)
+            `);
+        avgTimeQuery = applyDateFilter(avgTimeQuery);
+        const { data: timeData } = await avgTimeQuery;
+
+        let avgQuizToApplication = 0;
+        if (timeData && timeData.length > 0) {
+            const timeDiffs = timeData
+                .filter(app => app.quiz_answers?.completed_at)
+                .map(app => {
+                    const quizTime = new Date(app.quiz_answers.completed_at);
+                    const appTime = new Date(app.created_at);
+                    return (appTime - quizTime) / (1000 * 60 * 60); // hours
+                })
+                .filter(diff => diff >= 0)
+                .sort((a, b) => a - b);
+            
+            if (timeDiffs.length > 0) {
+                const median = timeDiffs.length % 2 === 0
+                    ? (timeDiffs[timeDiffs.length / 2 - 1] + timeDiffs[timeDiffs.length / 2]) / 2
+                    : timeDiffs[Math.floor(timeDiffs.length / 2)];
+                avgQuizToApplication = Math.round(median * 10) / 10; // Round to 1 decimal
+            }
+        }
+
+        // Application Completion Rate (% who completed docs + clicked redirect)
+        let completionQuery = supabaseAdmin
+            .from('applications')
+            .select('status');
+        completionQuery = applyDateFilter(completionQuery);
+        const { data: completionData } = await completionQuery;
+
+        let applicationCompletionRate = 0;
+        if (completionData && completionData.length > 0) {
+            const docsUploaded = completionData.filter(app => 
+                ['docs_uploaded', 'redirected', 'confirmed_applied'].includes(app.status)
+            ).length;
+            const completed = completionData.filter(app => 
+                ['redirected', 'confirmed_applied'].includes(app.status)
+            ).length;
+            applicationCompletionRate = docsUploaded > 0 ? 
+                Math.round((completed / docsUploaded) * 100 * 10) / 10 : 0;
+        }
+
+        // Email Confirmation Click Rate (% who confirmed after redirect)
+        let confirmationQuery = supabaseAdmin
+            .from('applications')
+            .select('redirected_at, confirmed_at');
+        confirmationQuery = applyDateFilter(confirmationQuery);
+        const { data: confirmationData } = await confirmationQuery;
+
+        let emailConfirmationRate = 0;
+        if (confirmationData && confirmationData.length > 0) {
+            const redirected = confirmationData.filter(app => app.redirected_at).length;
+            const confirmed = confirmationData.filter(app => app.confirmed_at).length;
+            emailConfirmationRate = redirected > 0 ? 
+                Math.round((confirmed / redirected) * 100 * 10) / 10 : 0;
+        }
+
+        // Bounce Rate on Application Redirect (% who redirected but never confirmed)
+        let bounceRate = 0;
+        if (confirmationData && confirmationData.length > 0) {
+            const redirected = confirmationData.filter(app => app.redirected_at).length;
+            const bounced = confirmationData.filter(app => 
+                app.redirected_at && !app.confirmed_at
+            ).length;
+            bounceRate = redirected > 0 ? 
+                Math.round((bounced / redirected) * 100 * 10) / 10 : 0;
+        }
+
+        // Top 5 Programs by application count
+        let programsQuery = supabaseAdmin
+            .from('applications')
+            .select(`
+                program_id,
+                programs!inner(name, universities!inner(name))
+            `);
+        programsQuery = applyDateFilter(programsQuery);
+        const { data: programData } = await programsQuery;
+
+        const programCounts = {};
+        programData?.forEach(app => {
+            const programName = app.programs?.name || 'Unknown Program';
+            const universityName = app.programs?.universities?.name || 'Unknown University';
+            const key = `${programName} - ${universityName}`;
+            programCounts[key] = (programCounts[key] || 0) + 1;
+        });
+        const top5Programs = Object.entries(programCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([name, count]) => ({ name, count }));
+
+        // Top 5 universities by program count (keeping existing for compatibility)
         const { data: topUniversities } = await supabaseAdmin
             .from('programs')
             .select('university_id, universities(name)')
@@ -88,7 +185,12 @@ class AdminService {
             totalUsers: totalUsers || 0,
             totalApplications: totalApplications || 0,
             avgDocsPerUser: avgDocsPerUser.toFixed(1),
-            top5Universities
+            avgQuizToApplication: avgQuizToApplication,
+            applicationCompletionRate: applicationCompletionRate,
+            emailConfirmationRate: emailConfirmationRate,
+            bounceRate: bounceRate,
+            top5Universities,
+            top5Programs
         };
     }
 
@@ -119,12 +221,15 @@ class AdminService {
 
         if (error) throw new Error(`Failed to fetch users: ${error.message}`);
 
+        console.log("user1", data[1]?.quiz_progress?.id)
+        console.log("user1", data[2]?.quiz_progress?.id)
+        console.log("user1", data[3]?.quiz_progress?.id)
         // Transform data
         const users = data.map(user => ({
             ...user,
-            quizStatus: user.quiz_answers?.length > 0 ? 'completed' : 'not_started',
+            quizStatus: user.quiz_answers?.id ? 'completed' : 'not_started',
             applicationCount: user.applications?.length || 0
-        }));
+        })).filter(user => user.role === 'student');
 
         return { users, total: count, page, limit };
     }
@@ -214,7 +319,174 @@ class AdminService {
     }
 
     // =============================================
-    // UNIVERSITIES MANAGEMENT
+    // STAFF MANAGEMENT
+    // =============================================
+    async getStaff() {
+        const { data, error } = await supabaseAdmin
+            .from('users')
+            .select('id, email, first_name, last_name, role, status, created_at')
+            .in('role', ['admin', 'admin_view', 'admin_edit', 'concierge'])
+            .order('created_at', { ascending: false });
+
+        if (error) throw new Error(`Failed to fetch staff: ${error.message}`);
+        return data;
+    }
+
+    async getStaffInvites() {
+        const { data, error } = await supabaseAdmin
+            .from('admin_invites')
+            .select(`
+                id, email, role, expires_at, created_at,
+                users!admin_invites_invited_by_fkey(email)
+            `)
+            .is('used_at', null)
+            .order('created_at', { ascending: false });
+
+        if (error) throw new Error(`Failed to fetch staff invites: ${error.message}`);
+        
+        // Transform data to include invited_by_email
+        const invites = data.map(invite => ({
+            ...invite,
+            invited_by_email: invite.users?.email || 'Unknown'
+        }));
+        
+        return invites;
+    }
+
+    async inviteStaff({ email, role, invitedBy }) {
+        // Check if user already exists
+        const { data: existingUser } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .eq('email', email)
+            .single();
+
+        if (existingUser) {
+            throw new Error('User with this email already exists');
+        }
+
+        // BYPASS SOLUTION: Create user directly instead of sending email invite
+        // TODO: Replace with proper email invitation system later
+        
+        // Generate random password (12 characters)
+        const randomPassword = crypto.randomBytes(6).toString('hex');
+        
+        // Create user in Supabase Auth
+        const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password: randomPassword,
+            email_confirm: true // Skip email confirmation
+        });
+
+        if (authError) {
+            throw new Error(`Failed to create user account: ${authError.message}`);
+        }
+
+        // Create user profile in our users table
+        const { data: userProfile, error: profileError } = await supabaseAdmin
+            .from('users')
+            .insert({
+                id: authUser.user.id,
+                email,
+                role,
+                status: 'active',
+                first_name: email.split('@')[0], // Use email prefix as temporary first name
+                last_name: 'Staff' // Temporary last name
+            })
+            .select()
+            .single();
+
+        if (profileError) {
+            // If profile creation fails, clean up the auth user
+            await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
+            throw new Error(`Failed to create user profile: ${profileError.message}`);
+        }
+
+        // Log action
+        await this.createAuditLog({
+            userId: invitedBy,
+            action: 'create_staff_user',
+            resourceType: 'user',
+            resourceId: userProfile.id,
+            newValues: { email, role, method: 'direct_creation' }
+        });
+
+        return {
+            user: userProfile,
+            temporaryPassword: randomPassword,
+            message: `User created successfully. Temporary password: ${randomPassword}`
+        };
+    }
+
+    async revokeStaffInvite(inviteId) {
+        const { data, error } = await supabaseAdmin
+            .from('admin_invites')
+            .delete()
+            .eq('id', inviteId)
+            .is('used_at', null)
+            .select()
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                throw new Error('Invitation not found or already used');
+            }
+            throw new Error(`Failed to revoke staff invite: ${error.message}`);
+        }
+
+        return data;
+    }
+
+    async updateStaffRole(userId, newRole, adminId) {
+        // Validate role
+        const validRoles = ['admin_view', 'admin_edit', 'concierge'];
+        if (!validRoles.includes(newRole)) {
+            throw new Error('Invalid role. Must be admin_view, admin_edit, or concierge');
+        }
+
+        // Get current user data
+        const { data: currentUser, error: fetchError } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (fetchError || !currentUser) {
+            throw new Error('Staff member not found');
+        }
+
+        // Don't allow changing your own role
+        if (userId === adminId) {
+            throw new Error('Cannot change your own role');
+        }
+
+        // Update user role
+        const { data, error } = await supabaseAdmin
+            .from('users')
+            .update({ role: newRole })
+            .eq('id', userId)
+            .select()
+            .single();
+
+        if (error) {
+            throw new Error(`Failed to update staff role: ${error.message}`);
+        }
+
+        // Log the action
+        await this.createAuditLog({
+            userId: adminId,
+            action: 'update_staff_role',
+            resourceType: 'user',
+            resourceId: userId,
+            oldValues: { role: currentUser.role },
+            newValues: { role: newRole }
+        });
+
+        return data;
+    }
+
+    // =============================================
+    // UNIVERSITY MANAGEMENT
     // =============================================
     async getUniversities({ page = 1, limit = 20, search = '', status = '' }) {
         let query = supabaseAdmin

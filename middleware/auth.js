@@ -67,11 +67,13 @@ export const requireRole = (requiredRoles) => {
 
     const userRole = req.user.role;
     
-    // Role hierarchy: admin > concierge > student
+    // Role hierarchy: admin roles > concierge > student
     const roleHierarchy = {
       'student': 0,
       'concierge': 1,
-      'admin': 2
+      'admin_view': 2,
+      'admin_edit': 3,
+      'admin': 3  // Legacy admin role - same level as admin_edit
     };
 
     const userLevel = roleHierarchy[userRole] || 0;
@@ -94,10 +96,10 @@ export const requireRole = (requiredRoles) => {
 };
 
 // Middleware for admin-only routes
-export const requireAdmin = requireRole(['admin']);
+export const requireAdmin = requireRole(['admin', 'admin_edit', 'admin_view']);
 
 // Middleware for concierge or admin routes
-export const requireConcierge = requireRole(['concierge', 'admin']);
+export const requireConcierge = requireRole(['concierge', 'admin', 'admin_edit', 'admin_view']);
 
 // Optional authentication - doesn't fail if no token provided
 export const optionalAuth = async (req, res, next) => {

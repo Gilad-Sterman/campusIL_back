@@ -107,6 +107,129 @@ class AdminController {
     }
 
     // =============================================
+    // STAFF MANAGEMENT
+    // =============================================
+    async getStaff(req, res) {
+        try {
+            const staff = await adminService.getStaff();
+            res.status(200).json({
+                success: true,
+                data: { staff }
+            });
+        } catch (error) {
+            console.error('AdminController.getStaff error:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    async getStaffInvites(req, res) {
+        try {
+            const invites = await adminService.getStaffInvites();
+            res.status(200).json({
+                success: true,
+                data: { invites }
+            });
+        } catch (error) {
+            console.error('AdminController.getStaffInvites error:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    async inviteStaff(req, res) {
+        try {
+            const { email, role } = req.body;
+            const invitedBy = req.user.id;
+
+            if (!email || !role) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Email and role are required'
+                });
+            }
+
+            const validRoles = ['admin_view', 'admin_edit', 'concierge'];
+            if (!validRoles.includes(role)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid role. Must be admin_view, admin_edit, or concierge'
+                });
+            }
+
+            const invite = await adminService.inviteStaff({ email, role, invitedBy });
+            res.status(201).json({
+                success: true,
+                data: invite,
+                message: 'Staff invitation sent successfully'
+            });
+        } catch (error) {
+            console.error('AdminController.inviteStaff error:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    async revokeStaffInvite(req, res) {
+        try {
+            const { id } = req.params;
+            await adminService.revokeStaffInvite(id);
+            res.status(200).json({
+                success: true,
+                message: 'Staff invitation revoked successfully'
+            });
+        } catch (error) {
+            console.error('AdminController.revokeStaffInvite error:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    async updateStaffRole(req, res) {
+        try {
+            const { id } = req.params;
+            const { role } = req.body;
+            const adminId = req.user.id;
+
+            if (!role) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Role is required'
+                });
+            }
+
+            const validRoles = ['admin_view', 'admin_edit', 'concierge'];
+            if (!validRoles.includes(role)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid role. Must be admin_view, admin_edit, or concierge'
+                });
+            }
+
+            const user = await adminService.updateStaffRole(id, role, adminId);
+            res.status(200).json({
+                success: true,
+                data: user,
+                message: 'Staff role updated successfully'
+            });
+        } catch (error) {
+            console.error('AdminController.updateStaffRole error:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    // =============================================
     // UNIVERSITIES
     // =============================================
     async getUniversities(req, res) {
@@ -136,10 +259,63 @@ class AdminController {
         try {
             const universityData = req.body;
 
-            if (!universityData.name || !universityData.city) {
+            // Validate all mandatory fields
+            const requiredFields = {
+                name: 'University name',
+                city: 'City',
+                region: 'Region',
+                description: 'Description',
+                website_url: 'Website URL',
+                tuition_avg_usd: 'Tuition average',
+                living_cost_usd: 'Living cost'
+            };
+
+            const missingFields = [];
+            for (const [field, label] of Object.entries(requiredFields)) {
+                if (!universityData[field] || universityData[field].toString().trim() === '') {
+                    missingFields.push(label);
+                }
+            }
+
+            // Validate languages array
+            if (!universityData.languages || !Array.isArray(universityData.languages) || universityData.languages.length === 0) {
+                missingFields.push('Languages offered');
+            }
+
+            // Validate logo URL (for new universities)
+            if (!universityData.logo_url || universityData.logo_url.trim() === '') {
+                missingFields.push('University logo');
+            }
+
+            if (missingFields.length > 0) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Name and city are required'
+                    error: `The following required fields are missing: ${missingFields.join(', ')}`
+                });
+            }
+
+            // Validate numeric fields
+            if (isNaN(parseInt(universityData.tuition_avg_usd)) || parseInt(universityData.tuition_avg_usd) < 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Tuition average must be a valid positive number'
+                });
+            }
+
+            if (isNaN(parseInt(universityData.living_cost_usd)) || parseInt(universityData.living_cost_usd) < 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Living cost must be a valid positive number'
+                });
+            }
+
+            // Validate URL format
+            try {
+                new URL(universityData.website_url);
+            } catch {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Website URL must be a valid URL'
                 });
             }
 

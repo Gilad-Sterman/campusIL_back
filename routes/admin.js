@@ -1,6 +1,7 @@
 import express from 'express';
 import adminController from '../controllers/admin.controller.js';
 import { authenticateUser, requireAdmin } from '../middleware/auth.js';
+import { validateUUID } from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -21,12 +22,21 @@ router.put('/users/:id/status', adminController.updateUserStatus);
 router.put('/users/:id/role', adminController.updateUserRole);
 
 // =============================================
+// STAFF MANAGEMENT
+// =============================================
+router.get('/staff', adminController.getStaff);
+router.get('/staff/invites', adminController.getStaffInvites);
+router.post('/staff/invite', adminController.inviteStaff);
+router.delete('/staff/invites/:id', validateUUID('id'), adminController.revokeStaffInvite);
+router.put('/staff/:id/role', validateUUID('id'), adminController.updateStaffRole);
+
+// =============================================
 // UNIVERSITIES
 // =============================================
 router.get('/universities', adminController.getUniversities);
 router.post('/universities', adminController.createUniversity);
-router.put('/universities/:id', adminController.updateUniversity);
-router.delete('/universities/:id', adminController.deleteUniversity);
+router.put('/universities/:id', validateUUID('id'), adminController.updateUniversity);
+router.delete('/universities/:id', validateUUID('id'), adminController.deleteUniversity);
 
 // =============================================
 // PROGRAMS

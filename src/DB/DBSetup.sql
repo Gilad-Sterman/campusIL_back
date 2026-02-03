@@ -234,7 +234,7 @@ ALTER TABLE appointments ADD CONSTRAINT check_appointment_status
 
 -- User roles must be valid
 ALTER TABLE users ADD CONSTRAINT check_user_role 
-  CHECK (role IN ('student', 'admin', 'concierge'));
+  CHECK (role IN ('student', 'admin', 'admin_view', 'admin_edit', 'concierge'));
 
 -- User status must be valid
 ALTER TABLE users ADD CONSTRAINT check_user_status 
