@@ -4,7 +4,7 @@ import { supabase } from '../config/db.js';
 export const authenticateUser = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
@@ -13,10 +13,10 @@ export const authenticateUser = async (req, res, next) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
+
     // Verify JWT token with Supabase
     const { data: { user }, error } = await supabase.auth.getUser(token);
-    
+
     if (error || !user) {
       return res.status(401).json({
         success: false,
@@ -55,6 +55,39 @@ export const authenticateUser = async (req, res, next) => {
   }
 };
 
+// Middleware to authenticate JUST the auth layer (no profile check)
+export const authenticateAuthOnly = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        error: 'No authorization token provided'
+      });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired token'
+      });
+    }
+
+    req.user = user; // Attach auth user but no profile
+    next();
+  } catch (error) {
+    console.error('AuthOnly middleware error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed'
+    });
+  }
+};
+
 // Middleware to check if user has required role
 export const requireRole = (requiredRoles) => {
   return (req, res, next) => {
@@ -66,7 +99,7 @@ export const requireRole = (requiredRoles) => {
     }
 
     const userRole = req.user.role;
-    
+
     // Role hierarchy: admin roles > concierge > student
     const roleHierarchy = {
       'student': 0,
@@ -105,16 +138,16 @@ export const requireConcierge = requireRole(['concierge', 'admin', 'admin_edit',
 export const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       req.user = null;
       return next();
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
+
     const { data: { user }, error } = await supabase.auth.getUser(token);
-    
+
     if (error || !user) {
       req.user = null;
       return next();

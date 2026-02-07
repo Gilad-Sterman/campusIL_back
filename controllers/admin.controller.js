@@ -47,6 +47,23 @@ class AdminController {
             });
         }
     }
+    async getUserById(req, res) {
+        try {
+            const { id } = req.params;
+            const user = await adminService.getUserById(id);
+
+            res.status(200).json({
+                success: true,
+                data: user
+            });
+        } catch (error) {
+            console.error('AdminController.getUserById error:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
 
     async updateUserStatus(req, res) {
         try {
@@ -176,6 +193,39 @@ class AdminController {
         }
     }
 
+    async completeStaffOnboarding(req, res) {
+        try {
+            const { firstName, lastName, password, token } = req.body;
+            const userId = req.user.id;
+
+            if (!firstName || !lastName || !password || !token) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'First name, last name, password, and token are required'
+                });
+            }
+
+            const user = await adminService.completeStaffOnboarding({
+                userId,
+                firstName,
+                lastName,
+                password,
+                token
+            });
+
+            res.status(200).json({
+                success: true,
+                data: user,
+                message: 'Onboarding completed successfully'
+            });
+        } catch (error) {
+            console.error('AdminController.completeStaffOnboarding error:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
     async revokeStaffInvite(req, res) {
         try {
             const { id } = req.params;
@@ -265,8 +315,8 @@ class AdminController {
                 city: 'City',
                 region: 'Region',
                 description: 'Description',
-                website_url: 'Website URL',
-                tuition_avg_usd: 'Tuition average',
+                application_url: 'Application URL',
+                tuition_usd: 'Tuition',
                 living_cost_usd: 'Living cost'
             };
 
@@ -277,10 +327,6 @@ class AdminController {
                 }
             }
 
-            // Validate languages array
-            if (!universityData.languages || !Array.isArray(universityData.languages) || universityData.languages.length === 0) {
-                missingFields.push('Languages offered');
-            }
 
             // Validate logo URL (for new universities)
             if (!universityData.logo_url || universityData.logo_url.trim() === '') {
@@ -295,10 +341,10 @@ class AdminController {
             }
 
             // Validate numeric fields
-            if (isNaN(parseInt(universityData.tuition_avg_usd)) || parseInt(universityData.tuition_avg_usd) < 0) {
+            if (isNaN(parseInt(universityData.tuition_usd)) || parseInt(universityData.tuition_usd) < 0) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Tuition average must be a valid positive number'
+                    error: 'Tuition must be a valid positive number'
                 });
             }
 
@@ -311,11 +357,11 @@ class AdminController {
 
             // Validate URL format
             try {
-                new URL(universityData.website_url);
+                new URL(universityData.application_url);
             } catch {
                 return res.status(400).json({
                     success: false,
-                    error: 'Website URL must be a valid URL'
+                    error: 'Application URL must be a valid URL'
                 });
             }
 

@@ -5,11 +5,12 @@ import {
   login, 
   logout, 
   getProfile, 
+  getAuthUser,
   updateProfile,
   forgotPassword,
   resetPassword
 } from '../controllers/auth.controller.js';
-import { authenticateUser } from '../middleware/auth.js';
+import { authenticateUser, authenticateAuthOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -100,6 +101,7 @@ router.post('/reset-password', resetPasswordValidation, resetPassword);
 
 // Protected routes (require authentication)
 router.get('/me', authenticateUser, getProfile);
+router.get('/auth-user', authenticateAuthOnly, getAuthUser); // For onboarding - returns Supabase auth user data
 router.put('/profile', authenticateUser, profileUpdateValidation, updateProfile);
 
 export default router;

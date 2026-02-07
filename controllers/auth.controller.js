@@ -256,6 +256,33 @@ export const getProfile = async (req, res) => {
   }
 };
 
+// Get Supabase auth user data (for onboarding - before profile exists)
+export const getAuthUser = async (req, res) => {
+  try {
+    const user = req.user; // This comes from authenticateAuthOnly middleware
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not authenticated'
+      });
+    }
+
+    // Return the raw Supabase auth user data including metadata
+    res.json({
+      success: true,
+      data: user // This includes user_metadata with onboarding_token
+    });
+
+  } catch (error) {
+    console.error('Get auth user error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch auth user data'
+    });
+  }
+};
+
 // Update user profile
 export const updateProfile = async (req, res) => {
   try {

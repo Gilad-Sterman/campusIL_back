@@ -61,6 +61,7 @@ CREATE TABLE universities (
     logo_url TEXT,
     image_url TEXT,
     tuition_avg_usd INTEGER,
+    tuition_usd INTEGER,
     living_cost_usd INTEGER,
     languages TEXT[],
     status TEXT DEFAULT 'active',
@@ -490,6 +491,20 @@ INSERT INTO universities (name, city, region, description, website_url, status) 
 ('Technion - Israel Institute of Technology', 'Haifa', 'North', 'Top technical university specializing in engineering and technology', 'https://www.technion.ac.il/en/', 'active'),
 ('Ben-Gurion University of the Negev', 'Beer Sheva', 'South', 'Research university known for innovation and desert studies', 'https://in.bgu.ac.il/en/Pages/default.aspx', 'active');
 */
+
+-- =============================================================================
+-- SUPABASE STORAGE CONFIGURATION
+-- =============================================================================
+
+-- Note: Storage bucket and policies are configured via the setup script:
+--       Run: node scripts/setup-storage.js
+-- 
+-- This creates:
+-- - university-logos bucket (public, 5MB limit, image formats only)
+-- - Storage policies for public read and authenticated upload/update/delete
+-- 
+-- Storage policies cannot be created via SQL Editor - they must be created
+-- via the Storage API or Dashboard, which the setup script handles automatically.
 
 -- =============================================================================
 -- COMPLETION MESSAGE

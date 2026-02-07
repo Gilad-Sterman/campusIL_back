@@ -21,7 +21,7 @@ class AdminService {
 
         // Get quiz stats
         // quiz_progress (active/in-progress)
-        let quizStartsQuery = supabase
+        let quizStartsQuery = supabaseAdmin
             .from('quiz_progress')
             .select('*', { count: 'exact', head: true });
         quizStartsQuery = applyDateFilter(quizStartsQuery, { column: 'started_at' });
@@ -55,7 +55,6 @@ class AdminService {
         let docsQuery = supabaseAdmin
             .from('documents')
             .select('user_id');
-        docsQuery = applyDateFilter(docsQuery, { column: 'uploaded_at' });
         const { data: docsData } = await docsQuery;
 
         const avgDocsPerUser = docsData && docsData.length > 0
@@ -84,7 +83,7 @@ class AdminService {
                 })
                 .filter(diff => diff >= 0)
                 .sort((a, b) => a - b);
-            
+
             if (timeDiffs.length > 0) {
                 const median = timeDiffs.length % 2 === 0
                     ? (timeDiffs[timeDiffs.length / 2 - 1] + timeDiffs[timeDiffs.length / 2]) / 2
@@ -102,13 +101,13 @@ class AdminService {
 
         let applicationCompletionRate = 0;
         if (completionData && completionData.length > 0) {
-            const docsUploaded = completionData.filter(app => 
+            const docsUploaded = completionData.filter(app =>
                 ['docs_uploaded', 'redirected', 'confirmed_applied'].includes(app.status)
             ).length;
-            const completed = completionData.filter(app => 
+            const completed = completionData.filter(app =>
                 ['redirected', 'confirmed_applied'].includes(app.status)
             ).length;
-            applicationCompletionRate = docsUploaded > 0 ? 
+            applicationCompletionRate = docsUploaded > 0 ?
                 Math.round((completed / docsUploaded) * 100 * 10) / 10 : 0;
         }
 
@@ -123,7 +122,7 @@ class AdminService {
         if (confirmationData && confirmationData.length > 0) {
             const redirected = confirmationData.filter(app => app.redirected_at).length;
             const confirmed = confirmationData.filter(app => app.confirmed_at).length;
-            emailConfirmationRate = redirected > 0 ? 
+            emailConfirmationRate = redirected > 0 ?
                 Math.round((confirmed / redirected) * 100 * 10) / 10 : 0;
         }
 
@@ -131,10 +130,10 @@ class AdminService {
         let bounceRate = 0;
         if (confirmationData && confirmationData.length > 0) {
             const redirected = confirmationData.filter(app => app.redirected_at).length;
-            const bounced = confirmationData.filter(app => 
+            const bounced = confirmationData.filter(app =>
                 app.redirected_at && !app.confirmed_at
             ).length;
-            bounceRate = redirected > 0 ? 
+            bounceRate = redirected > 0 ?
                 Math.round((bounced / redirected) * 100 * 10) / 10 : 0;
         }
 
@@ -201,10 +200,9 @@ class AdminService {
         let query = supabaseAdmin
             .from('users')
             .select(`
-        id, email, first_name, last_name, phone, country, role, status, created_at, updated_at,
-        quiz_answers(id),
-        applications(id, status)
-      `, { count: 'exact' });
+                id, email, first_name, last_name, phone, country, role, status, created_at, updated_at,
+                applications(id, status)
+            `, { count: 'exact' });
 
         if (search) {
             query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
@@ -221,18 +219,122 @@ class AdminService {
 
         if (error) throw new Error(`Failed to fetch users: ${error.message}`);
 
-        console.log("user1", data[1]?.quiz_progress?.id)
-        console.log("user1", data[2]?.quiz_progress?.id)
-        console.log("user1", data[3]?.quiz_progress?.id)
+        if (!data || data.length === 0) {
+            return { users: [], total: count, page, limit };
+        }
+
+        // Fetch quiz, concierge, and document status for the returned users
+        const userIds = data.map(user => user.id);
+
+        const [answersResult, progressResult, appointmentsResult, documentsResult] = await Promise.all([
+            supabaseAdmin.from('quiz_answers').select('user_id').in('user_id', userIds),
+            supabaseAdmin.from('quiz_progress').select('user_id').in('user_id', userIds),
+            supabaseAdmin.from('appointments')
+                .select('user_id, status, scheduled_at')
+                .in('user_id', userIds)
+                .order('scheduled_at', { ascending: false }),
+            supabaseAdmin.from('documents')
+                .select('user_id, status')
+                .in('user_id', userIds)
+        ]);
+
+        const completedUserIds = new Set(answersResult.data?.map(a => a.user_id) || []);
+        const startedUserIds = new Set(progressResult.data?.map(p => p.user_id) || []);
+
+        // Map appointments by user_id
+        const userAppointments = {};
+        appointmentsResult.data?.forEach(app => {
+            if (!userAppointments[app.user_id]) {
+                userAppointments[app.user_id] = app.status;
+            }
+        });
+
+        // Map documents by user_id
+        const userDocuments = {};
+        documentsResult.data?.forEach(doc => {
+            if (!userDocuments[doc.user_id]) {
+                userDocuments[doc.user_id] = [];
+            }
+            userDocuments[doc.user_id].push(doc.status);
+        });
+
         // Transform data
-        const users = data.map(user => ({
-            ...user,
-            quizStatus: user.quiz_answers?.id ? 'completed' : 'not_started',
-            applicationCount: user.applications?.length || 0
-        })).filter(user => user.role === 'student');
+        const users = data.map(user => {
+            // Quiz Status
+            let quizStatus = 'not_started';
+            if (completedUserIds.has(user.id)) {
+                quizStatus = 'completed';
+            } else if (startedUserIds.has(user.id)) {
+                quizStatus = 'started';
+            }
+
+            // Concierge Status (latest appointment status)
+            const conciergeStatus = userAppointments[user.id] || 'none';
+
+            // Document Status (summary)
+            const docStatuses = userDocuments[user.id] || [];
+            let documentStatus = 'none';
+            if (docStatuses.length > 0) {
+                if (docStatuses.includes('pending_review')) {
+                    documentStatus = 'pending';
+                } else if (docStatuses.includes('rejected')) {
+                    documentStatus = 'rejected';
+                } else if (docStatuses.includes('approved')) {
+                    documentStatus = 'approved';
+                } else if (docStatuses.includes('uploaded')) {
+                    documentStatus = 'uploaded';
+                }
+            }
+
+            return {
+                ...user,
+                quizStatus,
+                conciergeStatus,
+                documentStatus,
+                applicationCount: user.applications?.length || 0
+            };
+        }).filter(user => user.role === 'student');
 
         return { users, total: count, page, limit };
     }
+
+    async getUserById(userId) {
+        // 1. Fetch user profile
+        const { data: user, error: userError } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (userError) throw new Error(`Failed to fetch user: ${userError.message}`);
+
+        // 2. Fetch associated data in parallel
+        const [quizAnswers, quizProgress, applications, documents, appointments] = await Promise.all([
+            supabaseAdmin.from('quiz_answers').select('*').eq('user_id', userId).order('completed_at', { ascending: false }),
+            supabaseAdmin.from('quiz_progress').select('*').eq('user_id', userId).single(),
+            supabaseAdmin.from('applications')
+                .select('*, programs(*, universities(*))')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false }),
+            supabaseAdmin.from('documents').select('*').eq('user_id', userId).order('uploaded_at', { ascending: false }),
+            supabaseAdmin.from('appointments')
+                .select('*, admin:users!admin_user_id(first_name, last_name, email)')
+                .eq('user_id', userId)
+                .order('scheduled_at', { ascending: false })
+        ]);
+
+        return {
+            ...user,
+            quiz: {
+                completed: quizAnswers.data || [],
+                inProgress: quizProgress.data || null
+            },
+            applications: applications.data || [],
+            documents: documents.data || [],
+            appointments: appointments.data || []
+        };
+    }
+
 
     async updateUserStatus(userId, newStatus, adminId) {
         // Check if user is super admin
@@ -343,18 +445,18 @@ class AdminService {
             .order('created_at', { ascending: false });
 
         if (error) throw new Error(`Failed to fetch staff invites: ${error.message}`);
-        
+
         // Transform data to include invited_by_email
         const invites = data.map(invite => ({
             ...invite,
             invited_by_email: invite.users?.email || 'Unknown'
         }));
-        
+
         return invites;
     }
 
     async inviteStaff({ email, role, invitedBy }) {
-        // Check if user already exists
+        // 1. Check if user already exists in our users table
         const { data: existingUser } = await supabaseAdmin
             .from('users')
             .select('id')
@@ -365,73 +467,160 @@ class AdminService {
             throw new Error('User with this email already exists');
         }
 
-        // BYPASS SOLUTION: Create user directly instead of sending email invite
-        // TODO: Replace with proper email invitation system later
+        // 2. Generate a secure onboarding token
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 48); // 48 hour expiry
+
+        // 3. Send Supabase Invitation Email
+        // The redirectTo should point to our onboarding page
+        // Use NODE_ENV to determine if we're in development or production
+        const isDevelopment = process.env.NODE_ENV === 'development';
+        const frontendUrl = isDevelopment 
+            ? (process.env.FRONTEND_URL || 'http://localhost:3001')
+            : (process.env.SITE_URL || 'http://localhost:3001');
         
-        // Generate random password (12 characters)
-        const randomPassword = crypto.randomBytes(6).toString('hex');
-        
-        // Create user in Supabase Auth
-        const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-            email,
-            password: randomPassword,
-            email_confirm: true // Skip email confirmation
+        const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+            redirectTo: `${frontendUrl}/admin/onboarding`,
+            data: {
+                role,
+                is_staff_invite: true,
+                onboarding_token: token // Store our internal token in user metadata
+            }
+        });
+
+        if (inviteError) {
+            throw new Error(`Supabase invite error: ${inviteError.message}`);
+        }
+
+        // 4. Record the invitation in our admin_invites table
+        const { error: dbError } = await supabaseAdmin
+            .from('admin_invites')
+            .insert({
+                email,
+                role,
+                token,
+                invited_by: invitedBy,
+                expires_at: expiresAt.toISOString()
+            });
+
+        if (dbError) {
+            console.error('Failed to record invite in database:', dbError);
+            // We don't throw here as the auth invite was already sent, 
+            // but we should log it. In a robust system we might attempt cleanup.
+        }
+
+        // 5. Log action
+        await this.createAuditLog({
+            userId: invitedBy,
+            action: 'invite_staff_user',
+            resourceType: 'user',
+            newValues: { email, role, method: 'supabase_email_invite', invite_id: inviteData.user?.id }
+        });
+
+        return {
+            success: true,
+            message: 'Invitation email sent successfully'
+        };
+    }
+
+    async completeStaffOnboarding({ userId, firstName, lastName, password, token }) {
+        // 1. Verify invitation exists and is valid
+        const { data: invite, error: inviteError } = await supabaseAdmin
+            .from('admin_invites')
+            .select('*')
+            .eq('token', token)
+            .is('used_at', null)
+            .single();
+
+        if (inviteError || !invite) {
+            throw new Error('Invalid or expired invitation token');
+        }
+
+        // Check expiry
+        if (new Date(invite.expires_at) < new Date()) {
+            throw new Error('Invitation has expired');
+        }
+
+        // 2. Update password in Supabase Auth
+        const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+            password: password
         });
 
         if (authError) {
-            throw new Error(`Failed to create user account: ${authError.message}`);
+            throw new Error(`Failed to set password: ${authError.message}`);
         }
 
-        // Create user profile in our users table
+        // 3. Create user profile in our users table
         const { data: userProfile, error: profileError } = await supabaseAdmin
             .from('users')
             .insert({
-                id: authUser.user.id,
-                email,
-                role,
+                id: userId,
+                email: invite.email,
+                role: invite.role,
                 status: 'active',
-                first_name: email.split('@')[0], // Use email prefix as temporary first name
-                last_name: 'Staff' // Temporary last name
+                first_name: firstName,
+                last_name: lastName
             })
             .select()
             .single();
 
         if (profileError) {
-            // If profile creation fails, clean up the auth user
-            await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
-            throw new Error(`Failed to create user profile: ${profileError.message}`);
+            throw new Error(`Failed to create staff profile: ${profileError.message}`);
         }
 
-        // Log action
+        // 4. Mark invite as used
+        await supabaseAdmin
+            .from('admin_invites')
+            .update({ used_at: new Date().toISOString() })
+            .eq('id', invite.id);
+
+        // 5. Log action
         await this.createAuditLog({
-            userId: invitedBy,
-            action: 'create_staff_user',
+            userId: userId,
+            action: 'complete_staff_onboarding',
             resourceType: 'user',
-            resourceId: userProfile.id,
-            newValues: { email, role, method: 'direct_creation' }
+            resourceId: userId,
+            newValues: { firstName, lastName, role: invite.role }
         });
 
-        return {
-            user: userProfile,
-            temporaryPassword: randomPassword,
-            message: `User created successfully. Temporary password: ${randomPassword}`
-        };
+        return userProfile;
     }
 
     async revokeStaffInvite(inviteId) {
+        // 1. Get the invite record first to get the email
+        const { data: invite, error: fetchError } = await supabaseAdmin
+            .from('admin_invites')
+            .select('email')
+            .eq('id', inviteId)
+            .is('used_at', null)
+            .single();
+
+        if (fetchError || !invite) {
+            throw new Error('Invitation not found or already used');
+        }
+
+        // 2. Find and delete the user from Supabase Auth
+        // Note: listUsers is the only way to find by email in Auth Admin API easily
+        const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+
+        if (!listError) {
+            const authUser = users.find(u => u.email === invite.email);
+            if (authUser) {
+                await supabaseAdmin.auth.admin.deleteUser(authUser.id);
+            }
+        }
+
+        // 3. Delete the invitation record
         const { data, error } = await supabaseAdmin
             .from('admin_invites')
             .delete()
             .eq('id', inviteId)
-            .is('used_at', null)
             .select()
             .single();
 
         if (error) {
-            if (error.code === 'PGRST116') {
-                throw new Error('Invitation not found or already used');
-            }
-            throw new Error(`Failed to revoke staff invite: ${error.message}`);
+            throw new Error(`Failed to delete invite record: ${error.message}`);
         }
 
         return data;
