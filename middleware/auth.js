@@ -128,8 +128,11 @@ export const requireRole = (requiredRoles) => {
   };
 };
 
-// Middleware for admin-only routes
+// Middleware for admin-only routes (view access)
 export const requireAdmin = requireRole(['admin', 'admin_edit', 'admin_view']);
+
+// Middleware for admin edit operations only
+export const requireAdminEdit = requireRole(['admin', 'admin_edit']);
 
 // Middleware for concierge or admin routes
 export const requireConcierge = requireRole(['concierge', 'admin', 'admin_edit', 'admin_view']);
