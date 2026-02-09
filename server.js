@@ -9,6 +9,7 @@ import quizRoutes from './routes/quiz.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import applicationRoutes from './routes/application.js';
+import documentRoutes from './routes/document.js';
 import uploadRoutes from './routes/upload.js';
 import { requestLogger } from './middleware/logging.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -66,6 +67,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/universities', universityRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api/documents', documentRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);

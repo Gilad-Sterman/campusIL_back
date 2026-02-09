@@ -458,4 +458,74 @@ ALTER TABLE programs ADD CONSTRAINT check_degree_level
 - **Monthly**: Vacuum and reindex operations
 - **Quarterly**: Review and optimize slow queries
 
+## Storage Configuration
+
+### Supabase Storage Buckets
+
+The platform uses Supabase Storage for file management with the following buckets:
+
+#### 1. university-logos
+- **Purpose**: Store university logo images
+- **Access**: Public bucket
+- **File size limit**: 5MB
+- **Allowed formats**: Image formats only (JPG, PNG, etc.)
+- **Usage**: University profile images displayed throughout the platform
+
+#### 2. user-documents  
+- **Purpose**: Store user-uploaded application documents
+- **Access**: Private bucket with Row Level Security (RLS)
+- **File size limit**: 10MB
+- **Allowed formats**: PDF, JPG, PNG, DOCX, DOC
+- **Usage**: Passports, transcripts, resumes, recommendation letters, etc.
+
+### Storage Security Policies
+
+The `user-documents` bucket implements strict RLS policies to ensure data privacy:
+
+```sql
+-- Policy 1: Users can upload own documents (INSERT)
+CREATE POLICY "Users can upload own documents" ON storage.objects 
+FOR INSERT TO authenticated 
+WITH CHECK ((auth.uid())::text = (storage.foldername(name))[1]);
+
+-- Policy 2: Users can view own documents (SELECT)  
+CREATE POLICY "Users can view own documents" ON storage.objects
+FOR SELECT TO authenticated
+USING ((auth.uid())::text = (storage.foldername(name))[1]);
+
+-- Policy 3: Users can update own documents (UPDATE)
+CREATE POLICY "Users can update own documents" ON storage.objects
+FOR UPDATE TO authenticated  
+USING ((auth.uid())::text = (storage.foldername(name))[1]);
+
+-- Policy 4: Users can delete own documents (DELETE)
+CREATE POLICY "Users can delete own documents" ON storage.objects
+FOR DELETE TO authenticated
+USING ((auth.uid())::text = (storage.foldername(name))[1]);
+```
+
+### File Organization Structure
+
+Documents are organized by user ID to ensure isolation:
+
+```
+user-documents/
+├── {user-id-1}/
+│   ├── passport-{uuid}.pdf
+│   ├── transcript-{uuid}.pdf
+│   └── resume-{uuid}.docx
+├── {user-id-2}/
+│   ├── passport-{uuid}.pdf
+│   └── recommendation-letter-{uuid}.pdf
+└── ...
+```
+
+### Security Features
+
+- **Virus scanning**: Files are scanned using ClamAV (when available) or fallback validation
+- **File type validation**: Only approved document types are accepted
+- **Size limits**: Maximum 10MB per document to prevent abuse
+- **User isolation**: RLS policies prevent cross-user access
+- **Audit trail**: All uploads/downloads are logged in the documents table
+
 This schema provides a robust foundation for the Campus Israel platform with proper security, performance optimization, and data integrity constraints.

@@ -496,15 +496,34 @@ INSERT INTO universities (name, city, region, description, website_url, status) 
 -- SUPABASE STORAGE CONFIGURATION
 -- =============================================================================
 
--- Note: Storage bucket and policies are configured via the setup script:
---       Run: node scripts/setup-storage.js
+-- Storage buckets and policies must be created manually via Supabase Dashboard:
 -- 
--- This creates:
--- - university-logos bucket (public, 5MB limit, image formats only)
--- - Storage policies for public read and authenticated upload/update/delete
--- 
--- Storage policies cannot be created via SQL Editor - they must be created
--- via the Storage API or Dashboard, which the setup script handles automatically.
+-- BUCKETS CREATED:
+-- 1. university-logos (public, 5MB limit, image formats only)
+-- 2. user-documents (private, 10MB limit, document formats only)
+--
+-- STORAGE POLICIES FOR user-documents BUCKET:
+-- Note: These policies are created via the Supabase Dashboard Storage > Policies section
+--
+-- Policy 1: Users can upload own documents (INSERT)
+-- CREATE POLICY "Users can upload own documents" ON storage.objects 
+-- FOR INSERT TO authenticated 
+-- WITH CHECK ((auth.uid())::text = (storage.foldername(name))[1]);
+--
+-- Policy 2: Users can view own documents (SELECT)  
+-- CREATE POLICY "Users can view own documents" ON storage.objects
+-- FOR SELECT TO authenticated
+-- USING ((auth.uid())::text = (storage.foldername(name))[1]);
+--
+-- Policy 3: Users can update own documents (UPDATE)
+-- CREATE POLICY "Users can update own documents" ON storage.objects
+-- FOR UPDATE TO authenticated  
+-- USING ((auth.uid())::text = (storage.foldername(name))[1]);
+--
+-- Policy 4: Users can delete own documents (DELETE)
+-- CREATE POLICY "Users can delete own documents" ON storage.objects
+-- FOR DELETE TO authenticated
+-- USING ((auth.uid())::text = (storage.foldername(name))[1]);
 
 -- =============================================================================
 -- COMPLETION MESSAGE
