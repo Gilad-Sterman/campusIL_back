@@ -209,6 +209,132 @@ class ApplicationController {
       });
     }
   }
+
+  // PATCH /api/applications/info - Update application basic info (Step 2)
+  async updateApplicationInfo(req, res) {
+    try {
+      const userId = req.user.id;
+      const updateData = req.body;
+
+      // Validate required fields
+      if (!updateData.primary_major || !updateData.primary_university) {
+        return res.status(400).json({
+          success: false,
+          error: 'Primary major and university are required'
+        });
+      }
+
+      // If secondary major is provided, secondary university is required
+      if (updateData.secondary_major && !updateData.secondary_university) {
+        return res.status(400).json({
+          success: false,
+          error: 'Secondary university is required when secondary major is selected'
+        });
+      }
+
+      const updatedApplication = await applicationService.updateApplicationInfo(userId, updateData);
+
+      res.status(200).json({
+        success: true,
+        data: updatedApplication,
+        message: 'Application info updated successfully'
+      });
+    } catch (error) {
+      console.error('ApplicationController.updateApplicationInfo error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // GET /api/applications/status - Get application status for current user
+  async getApplicationStatus(req, res) {
+    try {
+      const userId = req.user.id;
+      const { program_id, university_id } = req.query;
+
+      const status = await applicationService.getApplicationStatus(userId, program_id, university_id);
+
+      res.status(200).json({
+        success: true,
+        data: status
+      });
+    } catch (error) {
+      console.error('ApplicationController.getApplicationStatus error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // GET /api/programs/:id/required-documents - Get required documents for a program
+  async getProgramRequiredDocuments(req, res) {
+    try {
+      const { id } = req.params;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Program ID is required'
+        });
+      }
+
+      const documents = await applicationService.getProgramRequiredDocuments(id);
+
+      res.status(200).json({
+        success: true,
+        data: documents
+      });
+    } catch (error) {
+      console.error('ApplicationController.getProgramRequiredDocuments error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // GET /api/universities - Get universities with optional program filter
+  async getUniversities(req, res) {
+    try {
+      const { program, hebrew_proficiency } = req.query;
+
+      const universities = await applicationService.getUniversities({ program, hebrew_proficiency });
+
+      res.status(200).json({
+        success: true,
+        data: universities
+      });
+    } catch (error) {
+      console.error('ApplicationController.getUniversities error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // GET /api/programs - Get programs with optional university filter
+  async getPrograms(req, res) {
+    try {
+      const { university_id } = req.query;
+
+      const programs = await applicationService.getPrograms({ university_id });
+
+      res.status(200).json({
+        success: true,
+        data: programs
+      });
+    } catch (error) {
+      console.error('ApplicationController.getPrograms error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
 }
 
 export default new ApplicationController();

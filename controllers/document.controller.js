@@ -113,6 +113,32 @@ class DocumentController {
       });
     }
   }
+
+  // GET /api/documents/:id/view-url - Get signed URL for viewing document
+  async getDocumentViewUrl(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const signedUrl = await documentService.getDocumentViewUrl(id, userId);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          signedUrl,
+          expiresIn: '1 hour'
+        }
+      });
+    } catch (error) {
+      console.error('DocumentController.getDocumentViewUrl error:', error);
+      
+      const statusCode = error.message === 'Document not found' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
 }
 
 export default new DocumentController();

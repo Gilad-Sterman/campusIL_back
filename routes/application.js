@@ -11,6 +11,18 @@ router.use(authenticateUser);
 // GET /api/applications - Get user's applications
 router.get('/', applicationController.getUserApplications);
 
+// GET /api/applications/status - Get application status for current user (must be before /:id route)
+router.get('/status', applicationController.getApplicationStatus);
+
+// PATCH /api/applications/info - Update application basic info (Step 2)
+router.patch('/info', applicationController.updateApplicationInfo);
+
+// GET /api/applications/documents/:applicationId - Get application documents
+router.get('/documents/:applicationId', validateUUID('applicationId'), applicationController.getApplicationDocuments);
+
+// POST /api/applications/documents - Upload application document
+router.post('/documents', applicationController.uploadDocument);
+
 // GET /api/applications/:id - Get specific application
 router.get('/:id', validateUUID('id'), applicationController.getApplicationById);
 
@@ -22,11 +34,5 @@ router.put('/:id', validateUUID('id'), applicationController.updateApplication);
 
 // DELETE /api/applications/:id - Delete application
 router.delete('/:id', validateUUID('id'), applicationController.deleteApplication);
-
-// GET /api/applications/documents/:applicationId - Get application documents
-router.get('/documents/:applicationId', validateUUID('applicationId'), applicationController.getApplicationDocuments);
-
-// POST /api/applications/documents - Upload application document
-router.post('/documents', applicationController.uploadDocument);
 
 export default router;

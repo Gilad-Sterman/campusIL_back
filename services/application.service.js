@@ -13,7 +13,8 @@ class ApplicationService {
             name, 
             degree_level, 
             duration_years,
-            university:universities(id, name, city, logo_url)
+            application_url,
+            university:universities(id, name, city, logo_url, application_url)
           )
         `)
         .eq('user_id', userId)
@@ -309,6 +310,231 @@ class ApplicationService {
       return stats;
     } catch (error) {
       console.error('ApplicationService.getUserApplicationStats error:', error);
+      throw error;
+    }
+  }
+
+  // Update application basic info (Step 2 of application flow)
+  async updateApplicationInfo(userId, updateData) {
+    try {
+      const {
+        primary_major, // This is the specific program ID for the selected university
+        primary_university,
+        current_education_level,
+        gpa,
+        hebrew_proficiency,
+        been_to_israel
+      } = updateData;
+
+      // Validate that we have both program and university
+      if (!primary_major || !primary_university) {
+        throw new Error('Both program and university must be selected');
+      }
+
+      // Check if user already has an application for this program
+      let { data: existingApp, error: findError } = await supabase
+        .from('applications')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('program_id', primary_major)
+        .maybeSingle();
+
+      if (findError) {
+        throw new Error(`Failed to check existing application: ${findError.message}`);
+      }
+
+      let applicationData;
+
+      if (existingApp) {
+        // Update existing application
+        const { data, error } = await supabase
+          .from('applications')
+          .update({
+            status: 'draft',
+            notes: JSON.stringify({
+              current_education_level,
+              gpa: gpa || null,
+              hebrew_proficiency,
+              been_to_israel,
+              primary_university
+            }),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingApp.id)
+          .select(`
+            *,
+            program:programs(
+              id, 
+              name, 
+              degree_level,
+              university:universities(id, name, city, logo_url)
+            )
+          `)
+          .single();
+
+        if (error) throw new Error(`Failed to update application: ${error.message}`);
+        applicationData = data;
+      } else {
+        // Create new application
+        const { data, error } = await supabase
+          .from('applications')
+          .insert([{
+            user_id: userId,
+            program_id: primary_major,
+            status: 'draft',
+            notes: JSON.stringify({
+              current_education_level,
+              gpa: gpa || null,
+              hebrew_proficiency,
+              been_to_israel,
+              primary_university
+            }),
+            created_at: new Date().toISOString()
+          }])
+          .select(`
+            *,
+            program:programs(
+              id, 
+              name, 
+              degree_level,
+              university:universities(id, name, city, logo_url)
+            )
+          `)
+          .single();
+
+        if (error) throw new Error(`Failed to create application: ${error.message}`);
+        applicationData = data;
+      }
+
+      return applicationData;
+    } catch (error) {
+      console.error('ApplicationService.updateApplicationInfo error:', error);
+      throw error;
+    }
+  }
+
+  // Get application status for duplicate checking
+  async getApplicationStatus(userId, programId, universityId) {
+    try {
+      const { data, error } = await supabase
+        .from('applications')
+        .select(`
+          id,
+          status,
+          program:programs(
+            id, 
+            name,
+            university:universities(id, name)
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('program_id', programId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw new Error(`Failed to check application status: ${error.message}`);
+      }
+
+      return data || null;
+    } catch (error) {
+      console.error('ApplicationService.getApplicationStatus error:', error);
+      throw error;
+    }
+  }
+
+  // Get required documents for a program
+  async getProgramRequiredDocuments(programId) {
+    try {
+      const { data, error } = await supabase
+        .from('programs')
+        .select('doc_requirements')
+        .eq('id', programId)
+        .single();
+
+      if (error) {
+        throw new Error(`Failed to fetch program documents: ${error.message}`);
+      }
+
+      // Convert the doc_requirements array to the expected format
+      const requiredDocs = (data?.doc_requirements || []).map(docType => ({
+        document_type: docType,
+        is_required: true,
+        description: `Required document: ${docType}`
+      }));
+
+      // If no program-specific requirements, return default requirements
+      if (requiredDocs.length === 0) {
+        return [
+          { document_type: 'high_school_transcript', is_required: true, description: 'High School Transcript & Diploma' },
+          { document_type: 'sat_scores', is_required: false, description: 'SAT/ACT Scores (optional)' },
+          { document_type: 'ap_scores', is_required: false, description: 'AP Scores (optional)' },
+          { document_type: 'language_proficiency', is_required: false, description: 'Language Proficiency (TOEFL/IELTS)' },
+          { document_type: 'passport', is_required: true, description: 'Passport Scan' },
+          { document_type: 'resume', is_required: true, description: 'Resume or CV' },
+          { document_type: 'personal_statement', is_required: true, description: 'Personal Statement' },
+          { document_type: 'recommendation_letters', is_required: true, description: '1-3 Recommendation Letters' }
+        ];
+      }
+
+      return requiredDocs;
+    } catch (error) {
+      console.error('ApplicationService.getProgramRequiredDocuments error:', error);
+      throw error;
+    }
+  }
+
+  // Get universities with optional filters
+  async getUniversities({ program, hebrew_proficiency } = {}) {
+    try {
+      let query = supabase
+        .from('universities')
+        .select('id, name, city, logo_url, website_url, application_url')
+        .eq('status', 'active')
+        .order('name');
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw new Error(`Failed to fetch universities: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('ApplicationService.getUniversities error:', error);
+      throw error;
+    }
+  }
+
+  // Get programs with optional university filter
+  async getPrograms({ university_id } = {}) {
+    try {
+      let query = supabase
+        .from('programs')
+        .select(`
+          id, 
+          name, 
+          degree_level, 
+          duration_years, 
+          description,
+          application_url,
+          university:universities(id, name, city, application_url)
+        `)
+        .eq('status', 'active')
+        .order('name');
+
+      if (university_id) {
+        query = query.eq('university_id', university_id);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw new Error(`Failed to fetch programs: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('ApplicationService.getPrograms error:', error);
       throw error;
     }
   }

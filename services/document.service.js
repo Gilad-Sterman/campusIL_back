@@ -41,21 +41,57 @@ class DocumentService {
         throw new Error('User ID, document type, filename, and S3 key are required');
       }
 
-      const { data, error } = await supabase
+      // Check if document of this type already exists for user
+      const { data: existingDoc } = await supabase
         .from('documents')
-        .insert([{
-          user_id,
-          document_type,
-          original_filename: original_filename.trim(),
-          s3_key: s3_key.trim(),
-          file_size: file_size || null,
-          mime_type: mime_type || null,
-          virus_scan_status: virus_scan_status || 'pending',
-          virus_scan_result: virus_scan_result || null,
-          status: status || 'uploaded'
-        }])
-        .select()
+        .select('id')
+        .eq('user_id', user_id)
+        .eq('document_type', document_type)
         .single();
+
+      let data, error;
+      
+      if (existingDoc) {
+        // Update existing document (replacement)
+        const result = await supabase
+          .from('documents')
+          .update({
+            original_filename: original_filename.trim(),
+            s3_key: s3_key.trim(),
+            file_size: file_size || null,
+            mime_type: mime_type || null,
+            virus_scan_status: virus_scan_status || 'pending',
+            virus_scan_result: virus_scan_result || null,
+            status: status || 'uploaded',
+            uploaded_at: new Date().toISOString()
+          })
+          .eq('id', existingDoc.id)
+          .select()
+          .single();
+          
+        data = result.data;
+        error = result.error;
+      } else {
+        // Insert new document
+        const result = await supabase
+          .from('documents')
+          .insert([{
+            user_id,
+            document_type,
+            original_filename: original_filename.trim(),
+            s3_key: s3_key.trim(),
+            file_size: file_size || null,
+            mime_type: mime_type || null,
+            virus_scan_status: virus_scan_status || 'pending',
+            virus_scan_result: virus_scan_result || null,
+            status: status || 'uploaded'
+          }])
+          .select()
+          .single();
+          
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) {
         throw new Error(`Failed to upload document: ${error.message}`);
@@ -156,6 +192,37 @@ class DocumentService {
       return data || null;
     } catch (error) {
       console.error('DocumentService.getDocumentByType error:', error);
+      throw error;
+    }
+  }
+
+  // Get signed URL for viewing document
+  async getDocumentViewUrl(documentId, userId) {
+    try {
+      // First verify the document belongs to the user
+      const { data: document, error: fetchError } = await supabase
+        .from('documents')
+        .select('s3_key, original_filename')
+        .eq('id', documentId)
+        .eq('user_id', userId)
+        .single();
+
+      if (fetchError || !document) {
+        throw new Error('Document not found');
+      }
+
+      // Generate signed URL for viewing (1 hour expiry)
+      const { data: signedUrlData, error: urlError } = await supabase.storage
+        .from('user-documents')
+        .createSignedUrl(document.s3_key, 3600); // 1 hour
+
+      if (urlError) {
+        throw new Error(`Failed to generate signed URL: ${urlError.message}`);
+      }
+
+      return signedUrlData.signedUrl;
+    } catch (error) {
+      console.error('DocumentService.getDocumentViewUrl error:', error);
       throw error;
     }
   }

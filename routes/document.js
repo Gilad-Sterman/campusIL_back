@@ -30,4 +30,7 @@ router.put('/:id', validateUUID('id'), documentController.updateDocument);
 // DELETE /api/documents/:id - Delete document
 router.delete('/:id', validateUUID('id'), documentController.deleteDocument);
 
+// GET /api/documents/:id/view-url - Get signed URL for viewing document
+router.get('/:id/view-url', validateUUID('id'), documentController.getDocumentViewUrl);
+
 export default router;

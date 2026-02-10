@@ -5,6 +5,8 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import universityRoutes from './routes/university.js';
+import universitiesRoutes from './routes/universities.js';
+import programsRoutes from './routes/programs.js';
 import quizRoutes from './routes/quiz.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
@@ -65,7 +67,8 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/universities', universityRoutes);
+app.use('/api/universities', universitiesRoutes);
+app.use('/api/programs', programsRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/quiz', quizRoutes);
