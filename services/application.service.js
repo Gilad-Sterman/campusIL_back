@@ -414,13 +414,15 @@ class ApplicationService {
   }
 
   // Get application status for duplicate checking
-  async getApplicationStatus(userId, programId, universityId) {
+  async getApplicationStatus(userId, programId, universityId = null) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('applications')
         .select(`
           id,
           status,
+          notes,
+          program_id,
           program:programs(
             id, 
             name,
@@ -428,8 +430,24 @@ class ApplicationService {
           )
         `)
         .eq('user_id', userId)
-        .eq('program_id', programId)
-        .single();
+        .eq('program_id', programId);
+
+      // Only filter by university if provided (for backward compatibility)
+      if (universityId) {
+        // Get program's university_id and compare
+        const programQuery = supabase
+          .from('programs')
+          .select('university_id')
+          .eq('id', programId)
+          .single();
+        
+        const { data: programData } = await programQuery;
+        if (programData && programData.university_id !== universityId) {
+          return null; // Program doesn't belong to this university
+        }
+      }
+
+      const { data, error } = await query.single();
 
       if (error && error.code !== 'PGRST116') {
         throw new Error(`Failed to check application status: ${error.message}`);
@@ -517,6 +535,7 @@ class ApplicationService {
           duration_years, 
           description,
           application_url,
+          university_id,
           university:universities(id, name, city, application_url)
         `)
         .eq('status', 'active')

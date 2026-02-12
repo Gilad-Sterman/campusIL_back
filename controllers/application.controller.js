@@ -254,7 +254,8 @@ class ApplicationController {
       const userId = req.user.id;
       const { program_id, university_id } = req.query;
 
-      const status = await applicationService.getApplicationStatus(userId, program_id, university_id);
+      // Make university_id optional - if not provided, just check by program_id
+      const status = await applicationService.getApplicationStatus(userId, program_id, university_id || null);
 
       res.status(200).json({
         success: true,

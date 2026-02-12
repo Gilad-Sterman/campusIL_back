@@ -14,6 +14,7 @@ import applicationRoutes from './routes/application.js';
 import documentRoutes from './routes/document.js';
 import uploadRoutes from './routes/upload.js';
 import studyBuddyRoutes from './routes/studyBuddy.js';
+import searchRoutes from './routes/search.js';
 import { requestLogger } from './middleware/logging.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { testConnection } from './config/db.js';
@@ -76,6 +77,7 @@ app.use('/api/quiz', quizRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/study-buddy', studyBuddyRoutes);
+app.use('/api/search', searchRoutes);
 
 // Serve static files from public directory (built frontend)
 app.use(express.static('public'));

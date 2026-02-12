@@ -76,6 +76,9 @@ CREATE TABLE programs (
     degree_level TEXT NOT NULL,
     field TEXT NOT NULL,
     discipline TEXT,
+    domain TEXT,
+    career_horizon VARCHAR(60),
+    short_description VARCHAR(60),
     duration_years INTEGER,
     duration_text TEXT,
     tuition_usd INTEGER,
@@ -257,6 +260,10 @@ ALTER TABLE universities ADD CONSTRAINT check_university_status
 ALTER TABLE programs ADD CONSTRAINT check_program_status 
   CHECK (status IN ('active', 'inactive'));
 
+-- Domain must be valid
+ALTER TABLE programs ADD CONSTRAINT check_domain_valid 
+  CHECK (domain IN ('Future Builders', 'Human Insight & Impact', 'Power, Policy & Influence', 'Culture & Creativity', 'Explorative Paths'));
+
 -- Admin invite roles must be valid
 ALTER TABLE admin_invites ADD CONSTRAINT check_invite_role 
   CHECK (role IN ('admin_view', 'admin_edit', 'concierge'));
@@ -290,7 +297,20 @@ CREATE INDEX idx_programs_university_id ON programs(university_id);
 CREATE INDEX idx_programs_degree_level ON programs(degree_level);
 CREATE INDEX idx_programs_field ON programs(field);
 CREATE INDEX idx_programs_discipline ON programs(discipline);
+CREATE INDEX idx_programs_domain ON programs(domain);
+CREATE INDEX idx_programs_career_horizon ON programs(career_horizon);
 CREATE INDEX idx_programs_status ON programs(status);
+
+-- Full-text search index for elastic-style search
+CREATE INDEX idx_programs_search ON programs USING gin(
+  to_tsvector('english', 
+    COALESCE(name, '') || ' ' || 
+    COALESCE(degree_level, '') || ' ' || 
+    COALESCE(discipline, '') || ' ' || 
+    COALESCE(career_horizon, '') || ' ' ||
+    COALESCE(domain, '')
+  )
+);
 
 -- Audit log queries
 CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);

@@ -453,10 +453,10 @@ class AdminController {
         try {
             const programData = req.body;
 
-            if (!programData.name || !programData.university_id) {
+            if (!programData.name || !programData.university_id || !programData.domain || !programData.career_horizon) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Name and university_id are required'
+                    error: 'Name, university_id, domain, and career_horizon are required'
                 });
             }
 

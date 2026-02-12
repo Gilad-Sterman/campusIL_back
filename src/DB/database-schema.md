@@ -117,6 +117,10 @@ applications (1) ←→ (*) documents
 | `name` | TEXT | NOT NULL | Program name (e.g., "Computer Science") |
 | `degree_level` | TEXT | NOT NULL | bachelor, master, phd |
 | `field` | TEXT | NOT NULL | Academic field/category |
+| `discipline` | TEXT | NULL | Academic discipline for grouping |
+| `domain` | TEXT | NULL | Domain category (Future Builders, etc.) |
+| `career_horizon` | VARCHAR(60) | NULL | Career direction/archetype |
+| `short_description` | VARCHAR(60) | NULL | Brief program description |
 | `duration_years` | INTEGER | NULL | Program length in years |
 | `tuition_usd` | INTEGER | NULL | Annual tuition in USD |
 | `description` | TEXT | NULL | Program description and highlights |
@@ -139,10 +143,27 @@ applications (1) ←→ (*) documents
 }
 ```
 
+**Domain Hierarchy**:
+The new domain system creates a structured hierarchy for program organization:
+```
+Domain (5 hardcoded options)
+├── Future Builders
+├── Human Insight & Impact  
+├── Power, Policy & Influence
+├── Culture & Creativity
+└── Explorative Paths
+    └── Discipline (15 client-approved categories)
+        └── Degree Title (program.name)
+            └── Career Horizon (career direction/archetype)
+```
+
 **Key Points**:
 - Links to universities via foreign key with CASCADE delete
 - JSONB requirements allow flexible requirement structures
 - Publicly readable for program discovery
+- Domain field enables grouping programs for discovery pages
+- Career horizon describes potential career paths
+- Short description provides brief program overview for search results
 
 ### 5. saved_programs
 **Purpose**: Junction table tracking which programs users have saved for later reference.
