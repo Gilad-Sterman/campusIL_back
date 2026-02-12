@@ -82,6 +82,10 @@ class SearchService {
           domain,
           career_horizon,
           short_description,
+          description,
+          image_url,
+          duration_years,
+          tuition_usd,
           university_id,
           university:universities(id, name, city, logo_url)
         `)
