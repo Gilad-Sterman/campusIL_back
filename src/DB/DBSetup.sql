@@ -144,6 +144,9 @@ CREATE TABLE appointments (
     status TEXT DEFAULT 'scheduled',
     meeting_url TEXT,
     notes TEXT,
+    google_event_id TEXT,
+    reschedule_token TEXT,
+    token_expires_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -200,8 +203,12 @@ CREATE TABLE concierges (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     email TEXT NOT NULL,
-    calendar_integration_type TEXT,
-    calendar_integration_data JSONB,
+    calendar_provider TEXT DEFAULT 'google',
+    google_access_token_encrypted TEXT,
+    google_refresh_token_encrypted TEXT,
+    google_calendar_id TEXT,
+    last_sync_at TIMESTAMP WITH TIME ZONE,
+    calendar_connected_at TIMESTAMP WITH TIME ZONE,
     is_available BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id)
@@ -268,6 +275,17 @@ ALTER TABLE programs ADD CONSTRAINT check_domain_valid
 ALTER TABLE admin_invites ADD CONSTRAINT check_invite_role 
   CHECK (role IN ('admin_view', 'admin_edit', 'concierge'));
 
+-- Calendar provider must be valid (extensible for future providers)
+ALTER TABLE concierges ADD CONSTRAINT check_calendar_provider 
+  CHECK (calendar_provider IN ('google', 'outlook'));
+
+-- Reschedule token should have expiration
+ALTER TABLE appointments ADD CONSTRAINT check_reschedule_token_expiry
+  CHECK (
+    (reschedule_token IS NULL AND token_expires_at IS NULL) OR
+    (reschedule_token IS NOT NULL AND token_expires_at IS NOT NULL)
+  );
+
 -- =============================================================================
 -- PERFORMANCE INDEXES
 -- =============================================================================
@@ -321,6 +339,18 @@ CREATE INDEX idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX idx_admin_invites_token ON admin_invites(token);
 CREATE INDEX idx_admin_invites_email ON admin_invites(email);
 
+-- Concierge calendar lookup indexes
+CREATE INDEX idx_concierges_calendar_provider ON concierges(calendar_provider);
+CREATE INDEX idx_concierges_calendar_connected ON concierges(is_available, calendar_provider) 
+  WHERE google_access_token_encrypted IS NOT NULL;
+
+-- Appointment calendar event lookup
+CREATE INDEX idx_appointments_google_event ON appointments(google_event_id);
+CREATE INDEX idx_appointments_reschedule_token ON appointments(reschedule_token);
+
+-- Appointment concierge lookup for user history
+CREATE INDEX idx_appointments_user_concierge ON appointments(user_id, admin_user_id, created_at DESC);
+
 -- =============================================================================
 -- HELPER FUNCTIONS FOR RLS
 -- =============================================================================
@@ -344,6 +374,45 @@ BEGIN
     SELECT 1 FROM users 
     WHERE id = user_uuid AND role IN ('concierge', 'admin')
   );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to check if concierge has calendar connected
+CREATE OR REPLACE FUNCTION is_calendar_connected(concierge_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM concierges 
+    WHERE user_id = concierge_user_id 
+    AND google_access_token_encrypted IS NOT NULL
+    AND is_available = true
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get user's preferred concierge based on appointment history
+CREATE OR REPLACE FUNCTION get_user_preferred_concierge(user_uuid UUID)
+RETURNS UUID AS $$
+DECLARE
+  preferred_concierge_id UUID;
+BEGIN
+  -- Get the concierge from user's most recent appointment
+  SELECT admin_user_id INTO preferred_concierge_id
+  FROM appointments 
+  WHERE user_id = user_uuid 
+    AND admin_user_id IS NOT NULL
+    AND status IN ('completed', 'scheduled')
+  ORDER BY created_at DESC 
+  LIMIT 1;
+  
+  -- Check if that concierge is still available and has calendar connected
+  IF preferred_concierge_id IS NOT NULL THEN
+    IF is_calendar_connected(preferred_concierge_id) THEN
+      RETURN preferred_concierge_id;
+    END IF;
+  END IF;
+  
+  RETURN NULL;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

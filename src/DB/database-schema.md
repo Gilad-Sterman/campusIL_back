@@ -238,7 +238,7 @@ draft → info_filled → docs_uploaded → redirected → confirmed_applied
 - S3 integration for secure file storage
 
 ### 8. appointments
-**Purpose**: Manages concierge appointments between users and admin staff.
+**Purpose**: Manages concierge appointments between users and admin staff with Google Calendar integration.
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
@@ -250,14 +250,43 @@ draft → info_filled → docs_uploaded → redirected → confirmed_applied
 | `status` | TEXT | DEFAULT 'scheduled' | scheduled, completed, cancelled |
 | `meeting_url` | TEXT | NULL | Video call link (Zoom, Google Meet) |
 | `notes` | TEXT | NULL | Appointment notes |
+| `google_event_id` | TEXT | NULL | Google Calendar event ID for sync |
+| `reschedule_token` | TEXT | NULL | Secure token for email-based rescheduling |
+| `token_expires_at` | TIMESTAMP WITH TIME ZONE | NULL | Reschedule token expiration |
 | `created_at` | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | Booking timestamp |
 
 **Key Points**:
 - Links users to admin staff for concierge services
-- Flexible scheduling with duration tracking
+- Google Calendar integration for real-time availability
+- Secure email-based rescheduling with expiring tokens
 - Status management for appointment lifecycle
 
-### 9. audit_logs
+### 9. concierges
+**Purpose**: Manages concierge profiles with Google Calendar integration for appointment scheduling.
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique concierge identifier |
+| `user_id` | UUID | NOT NULL, REFERENCES users(id) ON DELETE CASCADE, UNIQUE | Links to user account with concierge role |
+| `name` | TEXT | NOT NULL | Concierge display name |
+| `email` | TEXT | NOT NULL | Concierge contact email |
+| `calendar_provider` | TEXT | DEFAULT 'google' | Calendar service provider (google, outlook) |
+| `google_access_token_encrypted` | TEXT | NULL | Encrypted Google OAuth access token |
+| `google_refresh_token_encrypted` | TEXT | NULL | Encrypted Google OAuth refresh token |
+| `google_calendar_id` | TEXT | NULL | Google Calendar ID for availability sync |
+| `last_sync_at` | TIMESTAMP WITH TIME ZONE | NULL | Last calendar synchronization timestamp |
+| `calendar_connected_at` | TIMESTAMP WITH TIME ZONE | NULL | When calendar was first connected |
+| `is_available` | BOOLEAN | DEFAULT true | Whether concierge is accepting appointments |
+| `created_at` | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | Record creation timestamp |
+
+**Key Points**:
+- One-to-one relationship with users table (concierge role)
+- Google Calendar OAuth integration for real-time availability
+- Encrypted token storage for security
+- Extensible design for future calendar providers (Outlook)
+- Availability toggle for concierge management
+
+### 10. audit_logs
 **Purpose**: Security and compliance audit trail for sensitive operations.
 
 | Field | Type | Constraints | Description |
