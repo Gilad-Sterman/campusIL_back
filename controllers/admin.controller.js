@@ -453,10 +453,40 @@ class AdminController {
         try {
             const programData = req.body;
 
-            if (!programData.name || !programData.university_id || !programData.domain || !programData.career_horizon) {
+            // Required fields validation (only application_deadline, tuition_override_usd, program_image are optional)
+            const requiredFields = {
+                name: 'Program title',
+                university_id: 'University',
+                degree_level: 'Degree level', 
+                field: 'Field',
+                discipline: 'Discipline',
+                domain: 'Domain',
+                career_horizon: 'Career horizon',
+                short_description: 'Short description',
+                duration_text: 'Duration',
+                application_url: 'Application URL',
+                tuition_usd: 'Tuition',
+                living_cost_override_usd: 'Estimated living cost',
+                description: 'Description',
+                doc_requirements: 'Required documents',
+                status: 'Status'
+            };
+
+            // Check required fields
+            for (const [field, label] of Object.entries(requiredFields)) {
+                if (!programData[field] || (Array.isArray(programData[field]) && programData[field].length === 0)) {
+                    return res.status(400).json({
+                        success: false,
+                        error: `${label} is required`
+                    });
+                }
+            }
+
+            // Validate scholarships_available is boolean if provided
+            if (programData.scholarships_available !== undefined && typeof programData.scholarships_available !== 'boolean') {
                 return res.status(400).json({
                     success: false,
-                    error: 'Name, university_id, domain, and career_horizon are required'
+                    error: 'Scholarships available must be true or false'
                 });
             }
 

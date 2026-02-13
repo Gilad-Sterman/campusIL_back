@@ -49,12 +49,11 @@ class AdminService {
         const { count: totalUsers } = await usersQuery;
 
         // Get documents stats (metrics usually need distinct users for avg)
-        // For avg docs per user, we consider ALL docs to get a general ratio, or filtered by date?
-        // Usually stats like "Avg Docs/User" are "All Time" metrics or "Active" metrics.
-        // Let's filter by uploaded_at if date range exists.
+        // Apply date filter to documents to match selected time period
         let docsQuery = supabaseAdmin
             .from('documents')
             .select('user_id');
+        docsQuery = applyDateFilter(docsQuery, { column: 'uploaded_at' });
         const { data: docsData } = await docsQuery;
 
         const avgDocsPerUser = docsData && docsData.length > 0
@@ -178,8 +177,8 @@ class AdminService {
         return {
             quizStarts: quizStarts || 0,
             quizCompletions: quizCompletions || 0,
-            quizConversionRate: quizCompletions && totalApplications
-                ? ((totalApplications / quizCompletions) * 100).toFixed(1)
+            quizConversionRate: quizStarts && quizCompletions
+                ? ((quizCompletions / quizStarts) * 100).toFixed(1)
                 : 0,
             totalUsers: totalUsers || 0,
             totalApplications: totalApplications || 0,
