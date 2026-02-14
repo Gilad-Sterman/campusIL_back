@@ -29,8 +29,8 @@ router.post('/start', quizController.startAnonymousQuiz);
 // POST /api/quiz/answer - Save anonymous quiz answer
 router.post('/answer', [
   body('sessionId').isUUID().withMessage('Valid session ID required'),
-  body('questionId').isInt({ min: 1, max: 30 }).withMessage('Question ID must be between 1 and 30'),
-  body('answer').isInt({ min: 1, max: 5 }).withMessage('Answer must be between 1 and 5'),
+  body('questionId').isInt({ min: 1 }).withMessage('Question ID must be a positive integer'),
+  body('answer').exists().withMessage('Answer is required'),
   handleValidationErrors
 ], quizController.saveAnonymousAnswer);
 
@@ -41,10 +41,7 @@ router.get('/session/:sessionId', [
 ], quizController.getAnonymousQuiz);
 
 // POST /api/quiz/mini-results - Generate mini results for anonymous users
-router.post('/mini-results', [
-  body('sessionId').isUUID().withMessage('Valid session ID required'),
-  handleValidationErrors
-], quizController.generateMiniResults);
+router.post('/mini-results', quizController.generateMiniResults);
 
 // POST /api/quiz/transfer - Transfer anonymous quiz to user account (during signup)
 router.post('/transfer', [
@@ -63,12 +60,15 @@ router.get('/user-state', authenticateUser, quizController.getUserQuizState);
 // POST /api/quiz/progress - Save quiz progress
 router.post('/progress', authenticateUser, [
   body('currentQuestion').isInt({ min: 1 }).withMessage('Current question must be a positive integer'),
-  body('answers').isArray().withMessage('Answers must be an array')
+  body('currentQuestionId').optional().isInt({ min: 1 }).withMessage('Current question ID must be a positive integer'),
+  body('answers').isArray().withMessage('Answers must be an array'),
+  body('questionPath').optional().isArray().withMessage('Question path must be an array'),
+  body('totalQuestions').optional().isInt({ min: 1 }).withMessage('Total questions must be a positive integer')
 ], quizController.saveProgress);
 
 // POST /api/quiz/complete-progress - Complete quiz from progress
 router.post('/complete-progress', authenticateUser, [
-  body('answers').isArray({ min: 5, max: 5 }).withMessage('Answers must be an array of exactly 5 items')
+  body('answers').isArray({ min: 1 }).withMessage('Answers must be a non-empty array')
 ], quizController.completeFromProgress);
 
 /**

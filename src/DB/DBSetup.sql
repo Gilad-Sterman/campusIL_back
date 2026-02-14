@@ -25,7 +25,11 @@ CREATE TABLE quiz_progress (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   status VARCHAR(20) NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress')),
   current_question INTEGER NOT NULL DEFAULT 1,
+  current_question_id VARCHAR(10),
   answers JSONB NOT NULL DEFAULT '[]'::jsonb,
+  total_questions INTEGER DEFAULT 0,
+  question_path JSONB DEFAULT '[]'::jsonb,
+  section_weights JSONB,
   started_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   
@@ -38,6 +42,11 @@ CREATE TABLE quiz_answers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   answers JSONB NOT NULL,
+  total_questions INTEGER DEFAULT 0,
+  question_path JSONB DEFAULT '[]'::jsonb,
+  section_weights JSONB,
+  riasec_scores JSONB,
+  personality_scores JSONB,
   brilliance_summary TEXT,
   program_matches JSONB,
   cost_analysis JSONB,
@@ -227,9 +236,9 @@ CREATE TABLE system_configs (
 -- DATA VALIDATION CONSTRAINTS
 -- =============================================================================
 
--- Add constraint to ensure valid number of answers (5 questions for testing, 30 for production)
+-- Add constraint to ensure answers payload is a non-empty array (dynamic quiz length supported)
 ALTER TABLE quiz_answers ADD CONSTRAINT check_quiz_answers_valid 
-  CHECK (jsonb_array_length(answers) = 5);
+  CHECK (jsonb_typeof(answers) = 'array' AND jsonb_array_length(answers) > 0);
 
 -- Application status must be valid
 ALTER TABLE applications ADD CONSTRAINT check_application_status 

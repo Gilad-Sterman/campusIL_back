@@ -1,5 +1,15 @@
 import storageService from './storageService.js';
 import { supabase } from '../config/db.js';
+import {
+  getQuestionById,
+  getTotalQuestions,
+  isAnswerValidForQuestion,
+  getVisibleQuestionIds,
+  getNextVisibleQuestionId,
+  isQuizCompleteForAnswers
+} from '../config/quizQuestions.js';
+import quizScoringService from './quizScoringService.js';
+import { QUIZ_SCORING_CONTRACT_VERSION } from '../config/quizScoringConfig.js';
 
 /**
  * Quiz service handling both anonymous and authenticated quiz flows
@@ -8,6 +18,48 @@ import { supabase } from '../config/db.js';
 class QuizService {
   constructor() {
     this.storage = storageService;
+  }
+
+  _buildResultsPayload({ sessionId, completedAt, totalAnswers, avgScore, insights, source, scoringBundle }) {
+    return {
+      contractVersion: QUIZ_SCORING_CONTRACT_VERSION,
+      sessionId,
+      completedAt,
+      totalAnswers,
+      avgScore,
+      insights,
+      canGetFullReport: true,
+      metadata: {
+        source,
+        generatedAt: new Date().toISOString(),
+        canGetFullReport: true,
+        scoringModelVersion: scoringBundle?.modelVersion || null,
+        scoringDiagnostics: scoringBundle?.diagnostics || null
+      },
+      stats: {
+        totalAnswers,
+        avgScore,
+        completedAt
+      },
+      scoring: scoringBundle?.scoring || null
+    };
+  }
+
+  _buildComputedResults(answerEntries, { sessionId, completedAt, source }) {
+    const normalizedAnswers = Array.isArray(answerEntries) ? answerEntries : [];
+    const scoringBundle = quizScoringService.calculateScoring(normalizedAnswers);
+    const numericAnalytics = quizScoringService.calculateNumericAnswerAnalytics(normalizedAnswers);
+    const insights = this._generateBasicInsights(numericAnalytics.numericAverage);
+
+    return this._buildResultsPayload({
+      sessionId,
+      completedAt,
+      totalAnswers: normalizedAnswers.length,
+      avgScore: numericAnalytics.numericAverage,
+      insights,
+      source,
+      scoringBundle
+    });
   }
 
   /**
@@ -24,7 +76,9 @@ class QuizService {
       ipAddress,
       answers: [],
       currentQuestion: 1,
-      totalQuestions: 5, // Updated for testing - was 30
+      currentQuestionId: 1,
+      totalQuestions: getTotalQuestions(),
+      questionPath: [1],
       startedAt: new Date().toISOString(),
       status: 'in_progress'
     };
@@ -37,7 +91,8 @@ class QuizService {
     return {
       sessionId,
       currentQuestion: 1,
-      totalQuestions: 5, // Updated for testing - was 30
+      currentQuestionId: 1,
+      totalQuestions: getTotalQuestions(),
       status: 'started'
     };
   }
@@ -45,8 +100,8 @@ class QuizService {
   /**
    * Save anonymous quiz answer
    * @param {string} sessionId - Session identifier
-   * @param {number} questionId - Question number (1-30)
-   * @param {number} answer - Answer value (1-5)
+   * @param {number} questionId - Question number
+   * @param {*} answer - Answer value (type varies by question)
    */
   async saveAnonymousAnswer(sessionId, questionId, answer) {
     const session = await this.storage.getQuizSession(sessionId);
@@ -54,11 +109,12 @@ class QuizService {
       throw new Error('Quiz session not found or expired');
     }
 
-    // Validate answer
-    if (questionId < 1 || questionId > 30) {
+    const question = getQuestionById(questionId);
+    if (!question) {
       throw new Error('Invalid question ID');
     }
-    if (answer < 1 || answer > 5) {
+
+    if (!isAnswerValidForQuestion(question, answer)) {
       throw new Error('Invalid answer value');
     }
 
@@ -66,27 +122,43 @@ class QuizService {
     const answers = [...session.answers];
     const existingIndex = answers.findIndex(a => a.questionId === questionId);
     
+    const answerData = {
+      questionId,
+      questionType: question.type,
+      answer,
+      timestamp: new Date().toISOString()
+    };
+
     if (existingIndex >= 0) {
-      answers[existingIndex] = { questionId, answer, timestamp: new Date().toISOString() };
+      answers[existingIndex] = answerData;
     } else {
-      answers.push({ questionId, answer, timestamp: new Date().toISOString() });
+      answers.push(answerData);
     }
 
-    // Calculate next question - Updated for testing (was 30)
-    const currentQuestion = Math.min(questionId + 1, 5);
-    const isComplete = answers.length === 5;
+    const visibleQuestionIds = getVisibleQuestionIds(answers);
+    const totalQuestions = visibleQuestionIds.length || getTotalQuestions();
+    const currentQuestion = getNextVisibleQuestionId(questionId, answers) || questionId;
+    const isComplete = answers.length >= totalQuestions;
+    const questionPath = Array.isArray(session.questionPath) ? [...session.questionPath] : [1];
+    if (currentQuestion && !questionPath.includes(currentQuestion)) {
+      questionPath.push(currentQuestion);
+    }
 
     const updatedData = {
       answers,
-      currentQuestion: isComplete ? 5 : currentQuestion,
+      currentQuestion: isComplete ? totalQuestions : currentQuestion,
+      currentQuestionId: isComplete ? totalQuestions : currentQuestion,
+      totalQuestions,
+      questionPath,
       status: isComplete ? 'completed' : 'in_progress',
       lastAnsweredAt: new Date().toISOString()
     };
 
     await this.storage.updateQuizProgress(sessionId, updatedData);
 
-    // Analytics event - only log milestone questions and completion
-    const shouldLog = questionId % 5 === 0 || questionId === 1 || updatedData.status === 'completed';
+    // Analytics event - log at milestones and completion
+    const milestoneInterval = Math.max(1, Math.floor(totalQuestions / 4));
+    const shouldLog = questionId % milestoneInterval === 0 || questionId === 1 || updatedData.status === 'completed';
     if (shouldLog) {
       await this._trackEvent('quiz_answered', { 
         sessionId, 
@@ -117,42 +189,58 @@ class QuizService {
     return {
       sessionId: session.sessionId,
       currentQuestion: session.currentQuestion,
+      currentQuestionId: session.currentQuestionId || session.currentQuestion,
       totalQuestions: session.totalQuestions,
       answers: session.answers,
       status: session.status,
       startedAt: session.startedAt,
+      questionPath: session.questionPath || [1],
       canResume: session.status === 'in_progress'
     };
   }
 
   /**
    * Generate mini results for anonymous users (pre-signup)
-   * @param {string} sessionId - Session identifier
+   * @param {string|Object} input - Session identifier or payload with answers
    */
-  async generateMiniResults(sessionId) {
+  async generateMiniResults(input) {
+    const payload = typeof input === 'string' ? { sessionId: input } : (input || {});
+    const { sessionId, answers, completedAt } = payload;
+    const hasAnswerPayload = Array.isArray(answers) && answers.length > 0;
+
+    if (hasAnswerPayload) {
+      if (!isQuizCompleteForAnswers(answers)) {
+        throw new Error('Quiz not completed');
+      }
+
+      await this._trackEvent('summary_viewed', {
+        sessionId: sessionId || null,
+        userType: 'anonymous',
+        source: 'answers_payload'
+      });
+
+      return this._buildComputedResults(answers, {
+        sessionId: sessionId || null,
+        completedAt: completedAt || new Date().toISOString(),
+        source: 'backend_mini_payload'
+      });
+    }
+
     const session = await this.storage.getQuizSession(sessionId);
     if (!session || session.status !== 'completed') {
       throw new Error('Quiz not completed');
     }
 
-    // Simple analysis for mini results
-    const answers = session.answers.map(a => a.answer);
-    const avgScore = answers.reduce((sum, val) => sum + val, 0) / answers.length;
-    
-    // Basic personality insights (will be enhanced with LLM later)
-    const insights = this._generateBasicInsights(answers);
-    
+    const answerEntries = session.answers || [];
+
     // Analytics event
     await this._trackEvent('summary_viewed', { sessionId, userType: 'anonymous' });
 
-    return {
+    return this._buildComputedResults(answerEntries, {
       sessionId,
       completedAt: session.lastAnsweredAt,
-      totalAnswers: answers.length,
-      insights,
-      avgScore: Math.round(avgScore * 10) / 10,
-      canGetFullReport: true
-    };
+      source: 'backend_mini'
+    });
   }
 
   /**
@@ -170,7 +258,9 @@ class QuizService {
     // Prepare quiz data for database
     const quizData = {
       user_id: userId,
-      answers: session.answers.map(a => a.answer), // Just the answer values for JSONB
+      answers: session.answers,
+      total_questions: session.totalQuestions || getTotalQuestions(),
+      question_path: session.questionPath || [],
       completed_at: session.lastAnsweredAt
     };
 
@@ -219,13 +309,20 @@ class QuizService {
     }
 
     if (completedQuiz) {
+      const results = this._buildComputedResults(completedQuiz.answers || [], {
+        sessionId: completedQuiz.id,
+        completedAt: completedQuiz.completed_at,
+        source: 'backend_profile'
+      });
+
       return {
         status: 'completed',
         canTakeQuiz: false,
         completedAt: completedQuiz.completed_at,
         quizId: completedQuiz.id,
         hasResults: true,
-        answers: completedQuiz.answers
+        answers: completedQuiz.answers,
+        results
       };
     }
 
@@ -245,6 +342,9 @@ class QuizService {
         status: 'in_progress',
         canTakeQuiz: true,
         currentQuestion: progressQuiz.current_question,
+        currentQuestionId: progressQuiz.current_question_id || progressQuiz.current_question,
+        totalQuestions: progressQuiz.total_questions || getVisibleQuestionIds(progressQuiz.answers || []).length || getTotalQuestions(),
+        questionPath: progressQuiz.question_path || [],
         answers: progressQuiz.answers,
         startedAt: progressQuiz.started_at,
         progressId: progressQuiz.id,
@@ -264,12 +364,25 @@ class QuizService {
    * @param {number} currentQuestion - Current question number
    * @param {Array} answers - Array of answers so far
    */
-  async saveQuizProgress(userId, currentQuestion, answers) {
+  async saveQuizProgress(userId, progressDataInput) {
+    const {
+      currentQuestion,
+      currentQuestionId,
+      answers,
+      questionPath,
+      totalQuestions
+    } = progressDataInput;
+
+    const computedTotalQuestions = getVisibleQuestionIds(answers || []).length || totalQuestions || getTotalQuestions();
+
     const progressData = {
       user_id: userId,
       status: 'in_progress',
       current_question: currentQuestion,
+      current_question_id: currentQuestionId || currentQuestion,
       answers: answers,
+      question_path: questionPath || [],
+      total_questions: computedTotalQuestions,
       updated_at: new Date().toISOString()
     };
 
@@ -295,18 +408,38 @@ class QuizService {
   async completeQuizFromProgress(userId, answers) {
     // Start transaction-like operations
     try {
+      if (!isQuizCompleteForAnswers(answers)) {
+        throw new Error('Quiz is not complete for current visible required questions');
+      }
+
+      const visibleQuestionIds = getVisibleQuestionIds(answers);
+
+      const { data: existingProgress } = await supabase
+        .from('quiz_progress')
+        .select('total_questions, question_path, section_weights')
+        .eq('user_id', userId)
+        .single();
+
+      const completionPayload = {
+        user_id: userId,
+        answers,
+        total_questions: existingProgress?.total_questions || visibleQuestionIds.length || answers.length,
+        question_path: existingProgress?.question_path || visibleQuestionIds,
+        section_weights: existingProgress?.section_weights || null,
+        completed_at: new Date().toISOString()
+      };
+
       // Save to quiz_answers
       const { data: completedQuiz, error: saveError } = await supabase
         .from('quiz_answers')
-        .insert({
-          user_id: userId,
-          answers: answers,
-          completed_at: new Date().toISOString()
-        })
+        .insert(completionPayload)
         .select()
         .single();
 
       if (saveError) {
+        if (saveError.message?.includes('check_quiz_answers_valid')) {
+          throw new Error('Failed to save completed quiz: check_quiz_answers_valid constraint is outdated for dynamic quiz length. Update DB constraint to accept non-empty answer arrays.');
+        }
         throw new Error(`Failed to save completed quiz: ${saveError.message}`);
       }
 
@@ -373,7 +506,9 @@ class QuizService {
       // Anonymous quiz is completed - save to quiz_answers
       const quizData = {
         user_id: userId,
-        answers: session.answers.map(a => a.answer),
+        answers: session.answers,
+        total_questions: session.totalQuestions || getTotalQuestions(),
+        question_path: session.questionPath || [],
         completed_at: session.lastAnsweredAt || new Date().toISOString()
       };
 
@@ -417,8 +552,13 @@ class QuizService {
           // Local has more progress, update server
           await this.saveQuizProgress(
             userId, 
-            session.currentQuestion || localProgress + 1, 
-            session.answers.map(a => a.answer)
+            {
+              currentQuestion: session.currentQuestion || localProgress + 1,
+              currentQuestionId: session.currentQuestionId || session.currentQuestion || localProgress + 1,
+              answers: session.answers,
+              questionPath: session.questionPath || [],
+              totalQuestions: session.totalQuestions || getTotalQuestions()
+            }
           );
           await this.storage.deleteQuizSession(sessionId);
           
@@ -441,8 +581,13 @@ class QuizService {
         // No server progress, transfer local progress
         await this.saveQuizProgress(
           userId,
-          session.currentQuestion || session.answers.length + 1,
-          session.answers.map(a => a.answer)
+          {
+            currentQuestion: session.currentQuestion || session.answers.length + 1,
+            currentQuestionId: session.currentQuestionId || session.currentQuestion || session.answers.length + 1,
+            answers: session.answers,
+            questionPath: session.questionPath || [],
+            totalQuestions: session.totalQuestions || getTotalQuestions()
+          }
         );
         await this.storage.deleteQuizSession(sessionId);
 
@@ -500,8 +645,14 @@ class QuizService {
    * Private method for basic insights generation
    * Will be replaced with LLM service later
    */
-  _generateBasicInsights(answers) {
-    const avgScore = answers.reduce((sum, val) => sum + val, 0) / answers.length;
+  _generateBasicInsights(avgScore) {
+    if (!Number.isFinite(avgScore)) {
+      return {
+        summary: 'You completed the questionnaire successfully. We are preparing your personalized profile.',
+        traits: ['Reflective', 'Engaged', 'Curious'],
+        recommendation: 'Your full recommendation set will unlock once scoring formulas are finalized.'
+      };
+    }
     
     if (avgScore >= 4) {
       return {

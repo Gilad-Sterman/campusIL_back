@@ -50,7 +50,12 @@ applications (1) ←→ (*) documents
 |-------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique quiz record identifier |
 | `user_id` | UUID | NOT NULL, REFERENCES users(id) ON DELETE CASCADE, UNIQUE | Links to user (one-to-one) |
-| `answers` | JSONB | NOT NULL | Array of 30 quiz answers (1-5 scale) |
+| `answers` | JSONB | NOT NULL | Array of answer objects with flexible structure for different question types |
+| `total_questions` | INTEGER | DEFAULT 0 | Total number of questions answered (dynamic based on conditional logic) |
+| `question_path` | JSONB | DEFAULT '[]'::jsonb | Array of question IDs actually shown to user |
+| `section_weights` | JSONB | NULL | User priority distribution from Q5 (degree/campus/city weights) |
+| `riasec_scores` | JSONB | NULL | RIASEC vocational interest scores |
+| `personality_scores` | JSONB | NULL | Big Five personality trait scores |
 | `brilliance_summary` | TEXT | NULL | LLM-generated user strengths summary |
 | `program_matches` | JSONB | NULL | LLM-generated program recommendations with reasoning |
 | `cost_analysis` | JSONB | NULL | Financial analysis and recommendations |
@@ -58,8 +63,44 @@ applications (1) ←→ (*) documents
 
 **JSONB Structure Examples**:
 ```json
-// answers field
-[1, 3, 5, 2, 4, ...] // 30 integers, 1-5 scale
+// answers field - New flexible format
+[
+  {
+    "questionId": "q1",
+    "questionType": "text_field",
+    "answer": { "value": "John Doe" },
+    "timestamp": "2026-02-13T22:20:00Z"
+  },
+  {
+    "questionId": "q8", 
+    "questionType": "nested_rating",
+    "answer": {
+      "ratings": {
+        "business": 4,
+        "calculator": 2,
+        "electronics": 0
+      }
+    },
+    "timestamp": "2026-02-13T22:25:00Z"
+  }
+]
+
+// section_weights field
+{
+  "degree": 60,
+  "campus": 25, 
+  "city": 15
+}
+
+// riasec_scores field
+{
+  "realistic": 3.2,
+  "investigative": 4.1,
+  "artistic": 2.8,
+  "social": 3.7,
+  "enterprising": 3.9,
+  "conventional": 2.4
+}
 
 // program_matches field
 {
@@ -88,7 +129,53 @@ applications (1) ←→ (*) documents
 - JSONB allows flexible storage of complex LLM responses
 - Immutable after creation (no updates allowed)
 
-### 3. universities
+### 3. quiz_progress
+**Purpose**: Stores in-progress quiz data for authenticated users. Allows resuming incomplete quizzes.
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique progress record identifier |
+| `user_id` | UUID | NOT NULL, REFERENCES auth.users(id) ON DELETE CASCADE, UNIQUE | Links to user (one-to-one) |
+| `status` | VARCHAR(20) | NOT NULL, DEFAULT 'in_progress' | Progress status (always 'in_progress') |
+| `current_question` | INTEGER | NOT NULL, DEFAULT 1 | Legacy current question number |
+| `current_question_id` | VARCHAR(10) | NULL | Current question ID (e.g., q1, q2) for dynamic flows |
+| `answers` | JSONB | NOT NULL, DEFAULT '[]'::jsonb | Array of answer objects with flexible structure |
+| `total_questions` | INTEGER | DEFAULT 0 | Total questions answered so far |
+| `question_path` | JSONB | DEFAULT '[]'::jsonb | Array of question IDs shown to user for navigation history |
+| `section_weights` | JSONB | NULL | User priority weights from Q5 (degree/campus/city distribution) |
+| `started_at` | TIMESTAMP | DEFAULT NOW() | Quiz start timestamp |
+| `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update timestamp |
+
+**JSONB Structure Examples**:
+```json
+// answers field - Same format as quiz_answers
+[
+  {
+    "questionId": "q1",
+    "questionType": "text_field", 
+    "answer": { "value": "John Doe" },
+    "timestamp": "2026-02-13T22:20:00Z"
+  }
+]
+
+// question_path field - Navigation history
+["q1", "q2", "q5", "q9", "q10"]
+
+// section_weights field
+{
+  "degree": 60,
+  "campus": 25,
+  "city": 15
+}
+```
+
+**Key Points**:
+- UNIQUE constraint on user_id enforces one in-progress quiz per user
+- Deleted when quiz is completed (moved to quiz_answers)
+- Supports dynamic question flows with conditional logic
+- Maintains navigation history for proper back/forward functionality
+
+### 4. universities
 **Purpose**: Master data for Israeli universities in the platform.
 
 | Field | Type | Constraints | Description |
@@ -465,9 +552,9 @@ CREATE INDEX idx_users_role ON users(role);
 ### Application-Level Constraints
 
 ```sql
--- Quiz answers must be valid scale (1-5)
+-- Quiz answers must be a non-empty JSON array (dynamic quiz length)
 ALTER TABLE quiz_answers ADD CONSTRAINT check_quiz_answers_valid 
-  CHECK (jsonb_array_length(answers) = 30);
+  CHECK (jsonb_typeof(answers) = 'array' AND jsonb_array_length(answers) > 0);
 
 -- Application status must be valid
 ALTER TABLE applications ADD CONSTRAINT check_application_status 

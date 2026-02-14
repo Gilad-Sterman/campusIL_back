@@ -47,7 +47,7 @@ class QuizController {
       const ipAddress = req.ip || req.connection.remoteAddress;
 
       // Validate required fields
-      if (!sessionId || !questionId || !answer) {
+      if (!sessionId || !questionId || answer === undefined || answer === null) {
         return res.status(400).json({
           error: 'Missing required fields',
           message: 'sessionId, questionId, and answer are required'
@@ -136,16 +136,21 @@ class QuizController {
    */
   async generateMiniResults(req, res) {
     try {
-      const { sessionId } = req.body;
+      const { sessionId, answers, completedAt } = req.body || {};
+      const hasAnswerPayload = Array.isArray(answers) && answers.length > 0;
 
-      if (!sessionId) {
+      if (!sessionId && !hasAnswerPayload) {
         return res.status(400).json({
-          error: 'Missing session ID',
-          message: 'Session ID is required'
+          error: 'Missing required payload',
+          message: 'Either sessionId or a non-empty answers array is required'
         });
       }
 
-      const results = await quizService.generateMiniResults(sessionId);
+      const results = await quizService.generateMiniResults({
+        sessionId,
+        answers,
+        completedAt
+      });
       
       res.json({
         success: true,
@@ -243,7 +248,13 @@ class QuizController {
   async saveProgress(req, res) {
     try {
       const userId = req.user?.id;
-      const { currentQuestion, answers } = req.body;
+      const {
+        currentQuestion,
+        currentQuestionId,
+        answers,
+        questionPath,
+        totalQuestions
+      } = req.body;
 
       if (!userId) {
         return res.status(401).json({
@@ -259,7 +270,13 @@ class QuizController {
         });
       }
 
-      const result = await quizService.saveQuizProgress(userId, currentQuestion, answers);
+      const result = await quizService.saveQuizProgress(userId, {
+        currentQuestion,
+        currentQuestionId,
+        answers,
+        questionPath,
+        totalQuestions
+      });
       
       res.json({
         success: true,
