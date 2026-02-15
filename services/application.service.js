@@ -13,6 +13,8 @@ class ApplicationService {
             name, 
             degree_level, 
             duration_years,
+            image_url,
+            doc_requirements,
             application_url,
             university:universities(id, name, city, logo_url, application_url)
           )
@@ -44,6 +46,8 @@ class ApplicationService {
             degree_level, 
             duration_years, 
             description,
+            image_url,
+            doc_requirements,
             university:universities(id, name, city, logo_url, website_url, application_url)
           )
         `)
@@ -152,6 +156,8 @@ class ApplicationService {
             name, 
             degree_level, 
             duration_years,
+            image_url,
+            doc_requirements,
             university:universities(id, name, city, logo_url)
           )
         `)
