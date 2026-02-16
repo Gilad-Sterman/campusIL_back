@@ -213,6 +213,19 @@ class QuizService {
         throw new Error('Quiz not completed');
       }
 
+      // Update the session status to completed if sessionId is provided
+      if (sessionId) {
+        try {
+          await this.storage.updateQuizProgress(sessionId, {
+            status: 'completed',
+            answers: answers,
+            lastAnsweredAt: completedAt || new Date().toISOString()
+          });
+        } catch (error) {
+          console.warn('Failed to update session status:', error);
+        }
+      }
+
       await this._trackEvent('summary_viewed', {
         sessionId: sessionId || null,
         userType: 'anonymous',

@@ -425,12 +425,36 @@ class AdminService {
     async getStaff() {
         const { data, error } = await supabaseAdmin
             .from('users')
-            .select('id, email, first_name, last_name, role, status, created_at')
+            .select(`
+                id, email, first_name, last_name, role, status, created_at,
+                concierges (
+                    calendar_connected_at,
+                    is_available,
+                    google_access_token_encrypted
+                )
+            `)
             .in('role', ['admin', 'admin_view', 'admin_edit', 'concierge'])
             .order('created_at', { ascending: false });
 
         if (error) throw new Error(`Failed to fetch staff: ${error.message}`);
-        return data;
+        
+        // Transform data to include connection status
+        const transformedData = data.map(user => {
+            // concierges is an object, not an array
+            const conciergeData = user.concierges;
+            const isConnected = user.role === 'concierge' && 
+                               conciergeData && 
+                               conciergeData.calendar_connected_at !== null;
+            
+            return {
+                ...user,
+                is_connected: isConnected,
+                calendar_connected_at: conciergeData?.calendar_connected_at || null,
+                is_available: conciergeData?.is_available || null
+            };
+        });
+
+        return transformedData;
     }
 
     async getStaffInvites() {

@@ -437,6 +437,15 @@ CREATE POLICY "Users can update own profile" ON users
   FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Admins can manage all users" ON users 
   FOR ALL USING (is_admin(auth.uid()));
+CREATE POLICY "Concierges can view appointment users" ON users 
+  FOR SELECT USING (
+    is_concierge_or_admin(auth.uid()) AND 
+    EXISTS (
+      SELECT 1 FROM appointments 
+      WHERE appointments.user_id = users.id 
+      AND appointments.admin_user_id = auth.uid()
+    )
+  );
 
 -- Quiz progress RLS
 ALTER TABLE quiz_progress ENABLE ROW LEVEL SECURITY;

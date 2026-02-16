@@ -262,7 +262,7 @@ export const getConciergeAppointments = async (req, res) => {
       .from('appointments')
       .select(`
         *,
-        users!appointments_user_id_fkey(first_name, last_name, email)
+        users!user_id(first_name, last_name, email)
       `)
       .eq('admin_user_id', userId)
       .order('scheduled_at', { ascending: true });
@@ -285,6 +285,7 @@ export const getConciergeAppointments = async (req, res) => {
     if (error) {
       throw new Error(`Failed to fetch appointments: ${error.message}`);
     }
+
 
     res.json({
       success: true,
