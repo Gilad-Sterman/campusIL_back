@@ -83,6 +83,8 @@ CREATE TABLE programs (
     university_id UUID NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     degree_level TEXT NOT NULL,
+    degree_title TEXT,
+    degree_qualification TEXT,
     field TEXT NOT NULL,
     discipline TEXT,
     domain TEXT,
@@ -197,10 +199,10 @@ CREATE TABLE admin_invites (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 13. Travel costs table (for cost calculator)
+-- 13. Travel costs table (for cost calculator) - Updated to use US states
 CREATE TABLE travel_costs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    country TEXT NOT NULL UNIQUE,
+    state TEXT NOT NULL UNIQUE,
     avg_flight_cost_usd INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -572,23 +574,58 @@ INSERT INTO system_configs (config_key, config_value, description) VALUES
 ('us_average_costs', '{"tuition": 40000, "living": 20000, "travel": 500}', 'US average university costs for comparison'),
 ('discord_general_invite', '{"url": "https://discord.gg/campusisrael", "expires_at": null}', 'General Discord community invite link');
 
--- Insert sample travel costs for major countries
-INSERT INTO travel_costs (country, avg_flight_cost_usd) VALUES
-('United States', 800),
-('Canada', 900),
-('United Kingdom', 600),
-('Germany', 500),
-('France', 550),
-('Australia', 1200),
-('Brazil', 1000),
-('India', 700),
-('China', 800),
-('Japan', 900),
-('South Korea', 850),
-('Mexico', 600),
-('Argentina', 1100),
-('South Africa', 900),
-('Russia', 700);
+-- Insert sample travel costs for US states
+INSERT INTO travel_costs (state, avg_flight_cost_usd) VALUES
+('Alabama', 650),
+('Alaska', 1200),
+('Arizona', 700),
+('Arkansas', 650),
+('California', 800),
+('Colorado', 750),
+('Connecticut', 600),
+('Delaware', 600),
+('Florida', 650),
+('Georgia', 650),
+('Hawaii', 1100),
+('Idaho', 750),
+('Illinois', 700),
+('Indiana', 700),
+('Iowa', 750),
+('Kansas', 750),
+('Kentucky', 700),
+('Louisiana', 700),
+('Maine', 650),
+('Maryland', 600),
+('Massachusetts', 600),
+('Michigan', 700),
+('Minnesota', 750),
+('Mississippi', 700),
+('Missouri', 750),
+('Montana', 800),
+('Nebraska', 750),
+('Nevada', 750),
+('New Hampshire', 650),
+('New Jersey', 600),
+('New Mexico', 750),
+('New York', 600),
+('North Carolina', 650),
+('North Dakota', 800),
+('Ohio', 700),
+('Oklahoma', 750),
+('Oregon', 800),
+('Pennsylvania', 650),
+('Rhode Island', 600),
+('South Carolina', 650),
+('South Dakota', 800),
+('Tennessee', 700),
+('Texas', 750),
+('Utah', 750),
+('Vermont', 650),
+('Virginia', 650),
+('Washington', 800),
+('West Virginia', 700),
+('Wisconsin', 750),
+('Wyoming', 800);
 
 -- Insert sample universities (uncomment if needed)
 /*

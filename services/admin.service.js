@@ -796,6 +796,11 @@ class AdminService {
     }
 
     async createProgram(programData) {
+        // Set field to same as name if not provided (for backward compatibility)
+        if (!programData.field) {
+            programData.field = programData.name;
+        }
+
         const { data, error } = await supabaseAdmin
             .from('programs')
             .insert(programData)

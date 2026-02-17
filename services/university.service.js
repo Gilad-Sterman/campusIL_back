@@ -179,13 +179,13 @@ class UniversityService {
     }
   }
 
-  // Get travel costs by region
+  // Get travel costs by US state
   async getTravelCosts() {
     try {
       const { data, error } = await supabase
         .from('travel_costs')
         .select('*')
-        .order('country', { ascending: true });
+        .order('state', { ascending: true });
 
       if (error) {
         throw new Error(`Failed to fetch travel costs: ${error.message}`);
@@ -194,7 +194,7 @@ class UniversityService {
       // Transform to object format
       const travelCosts = {};
       data.forEach(item => {
-        travelCosts[item.country] = item.avg_flight_cost_usd;
+        travelCosts[item.state] = item.avg_flight_cost_usd;
       });
 
       return travelCosts;
