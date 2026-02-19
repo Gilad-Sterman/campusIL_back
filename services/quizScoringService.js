@@ -57,7 +57,7 @@ class QuizScoringService {
 
   _deriveSectionWeights(answerEntries) {
     const fallback = QUIZ_SCORING_CONFIG.sectionWeights.base;
-    const sliderEntry = answerEntries.find((entry) => entry?.questionId === 3);
+    const sliderEntry = answerEntries.find((entry) => entry?.questionId === 5);
     const sliderAnswer = sliderEntry?.answer;
 
     if (!sliderAnswer || typeof sliderAnswer !== 'object') {
