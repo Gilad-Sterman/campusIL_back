@@ -16,6 +16,7 @@ import uploadRoutes from './routes/upload.js';
 import studyBuddyRoutes from './routes/studyBuddy.js';
 import searchRoutes from './routes/search.js';
 import conciergeRoutes from './routes/concierge.js';
+import programMatchingRoutes from './routes/programMatching.js';
 import { requestLogger } from './middleware/logging.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { testConnection } from './config/db.js';
@@ -72,6 +73,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/universities', universitiesRoutes);
 app.use('/api/programs', programsRoutes);
+app.use('/api/program-matching', programMatchingRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/quiz', quizRoutes);

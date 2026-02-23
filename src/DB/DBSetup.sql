@@ -73,6 +73,8 @@ CREATE TABLE universities (
     tuition_usd INTEGER,
     living_cost_usd INTEGER,
     languages TEXT[],
+    campus_data JSONB DEFAULT '{}',
+    city_data JSONB DEFAULT '{}',
     status TEXT DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -101,6 +103,7 @@ CREATE TABLE programs (
     languages TEXT[],
     application_url TEXT,
     image_url TEXT,
+    scoring_data JSONB DEFAULT '{}',
     status TEXT DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

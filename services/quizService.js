@@ -49,7 +49,14 @@ class QuizService {
     const normalizedAnswers = Array.isArray(answerEntries) ? answerEntries : [];
     const scoringBundle = quizScoringService.calculateScoring(normalizedAnswers);
     const numericAnalytics = quizScoringService.calculateNumericAnswerAnalytics(normalizedAnswers);
-    const insights = this._generateBasicInsights(numericAnalytics.numericAverage);
+    
+    // Generate enhanced insights using personality scoring
+    const brillianceInsights = quizScoringService.generateBrillianceSummary(scoringBundle.scoring);
+    const insights = {
+      summary: brillianceInsights.summary,
+      traits: brillianceInsights.traits,
+      recommendation: this._generatePersonalizedRecommendation(scoringBundle.scoring)
+    };
 
     return this._buildResultsPayload({
       sessionId,
@@ -268,12 +275,22 @@ class QuizService {
       throw new Error('Quiz session not found or not completed');
     }
 
+    // Calculate enhanced scoring for database storage
+    const scoringBundle = quizScoringService.calculateScoring(session.answers);
+    const brillianceInsights = quizScoringService.generateBrillianceSummary(scoringBundle.scoring);
+
     // Prepare quiz data for database
     const quizData = {
       user_id: userId,
       answers: session.answers,
       total_questions: session.totalQuestions || getTotalQuestions(),
       question_path: session.questionPath || [],
+      section_weights: scoringBundle?.scoring?.sections || null,
+      riasec_scores: scoringBundle?.scoring?.riasec || null,
+      personality_scores: scoringBundle?.scoring?.personality || null,
+      brilliance_summary: brillianceInsights?.summary || null,
+      program_matches: null, // Will be populated when program matching is implemented
+      cost_analysis: null,   // Will be populated when cost analysis is implemented
       completed_at: session.lastAnsweredAt
     };
 
@@ -335,6 +352,13 @@ class QuizService {
         quizId: completedQuiz.id,
         hasResults: true,
         answers: completedQuiz.answers,
+        // Include all enhanced scoring data from database
+        section_weights: completedQuiz.section_weights,
+        riasec_scores: completedQuiz.riasec_scores,
+        personality_scores: completedQuiz.personality_scores,
+        brilliance_summary: completedQuiz.brilliance_summary,
+        program_matches: completedQuiz.program_matches,
+        cost_analysis: completedQuiz.cost_analysis,
         results
       };
     }
@@ -433,12 +457,21 @@ class QuizService {
         .eq('user_id', userId)
         .single();
 
+      // Calculate enhanced scoring for database storage
+      const scoringBundle = quizScoringService.calculateScoring(answers);
+      const brillianceInsights = quizScoringService.generateBrillianceSummary(scoringBundle.scoring);
+
       const completionPayload = {
         user_id: userId,
         answers,
         total_questions: existingProgress?.total_questions || visibleQuestionIds.length || answers.length,
         question_path: existingProgress?.question_path || visibleQuestionIds,
-        section_weights: existingProgress?.section_weights || null,
+        section_weights: scoringBundle?.scoring?.sections || existingProgress?.section_weights || null,
+        riasec_scores: scoringBundle?.scoring?.riasec || null,
+        personality_scores: scoringBundle?.scoring?.personality || null,
+        brilliance_summary: brillianceInsights?.summary || null,
+        program_matches: null, // Will be populated when program matching is implemented
+        cost_analysis: null,   // Will be populated when cost analysis is implemented
         completed_at: new Date().toISOString()
       };
 
@@ -517,11 +550,21 @@ class QuizService {
     // Handle different scenarios
     if (session.status === 'completed') {
       // Anonymous quiz is completed - save to quiz_answers
+      // Calculate enhanced scoring for database storage
+      const scoringBundle = quizScoringService.calculateScoring(session.answers);
+      const brillianceInsights = quizScoringService.generateBrillianceSummary(scoringBundle.scoring);
+
       const quizData = {
         user_id: userId,
         answers: session.answers,
         total_questions: session.totalQuestions || getTotalQuestions(),
         question_path: session.questionPath || [],
+        section_weights: scoringBundle?.scoring?.sections || null,
+        riasec_scores: scoringBundle?.scoring?.riasec || null,
+        personality_scores: scoringBundle?.scoring?.personality || null,
+        brilliance_summary: brillianceInsights?.summary || null,
+        program_matches: null, // Will be populated when program matching is implemented
+        cost_analysis: null,   // Will be populated when cost analysis is implemented
         completed_at: session.lastAnsweredAt || new Date().toISOString()
       };
 
@@ -652,6 +695,40 @@ class QuizService {
     await this.storage.setRateLimit(identifier, action, current.count + 1, limit.window);
     
     return { allowed: true };
+  }
+
+  /**
+   * Generate personalized recommendation based on personality scoring
+   */
+  _generatePersonalizedRecommendation(scoring) {
+    const { conscientiousness } = scoring.personality;
+    const sectionWeights = scoring.sections;
+    
+    let recommendation = "Sign up to get your personalized university matches and detailed profile analysis";
+    
+    // Customize recommendation based on conscientiousness
+    if (conscientiousness && conscientiousness.score !== null) {
+      if (conscientiousness.tag === 'High') {
+        recommendation = "Your organized, goal-oriented approach makes you an excellent candidate for structured, challenging programs. ";
+      } else if (conscientiousness.tag === 'Low') {
+        recommendation = "Your flexible, creative approach would thrive in programs that offer variety and innovative learning methods. ";
+      } else {
+        recommendation = "Your balanced approach to structure and flexibility opens doors to diverse program options. ";
+      }
+    }
+    
+    // Add focus-based recommendation
+    if (sectionWeights.degree && sectionWeights.degree.weight > 50) {
+      recommendation += "Focus on academically rigorous programs with strong research opportunities.";
+    } else if (sectionWeights.campus && sectionWeights.campus.weight > 35) {
+      recommendation += "Look for universities with vibrant campus communities and extensive student life programs.";
+    } else if (sectionWeights.city && sectionWeights.city.weight > 35) {
+      recommendation += "Consider programs in cities that align with your lifestyle preferences and career goals.";
+    } else {
+      recommendation += "Explore programs that balance academic excellence with great campus and city experiences.";
+    }
+    
+    return recommendation;
   }
 
   /**

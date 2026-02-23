@@ -705,6 +705,9 @@ class AdminService {
             .from('universities')
             .select('*', { count: 'exact' });
 
+        // Filter out US universities - only show Israeli universities in admin
+        query = query.neq('region', 'United States');
+
         if (search) {
             query = query.or(`name.ilike.%${search}%,city.ilike.%${search}%`);
         }

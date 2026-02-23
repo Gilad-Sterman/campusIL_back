@@ -187,12 +187,63 @@ applications (1) ←→ (*) documents
 | `website_url` | TEXT | NULL | Official university website |
 | `application_url` | TEXT | NULL | Direct link to application portal |
 | `logo_url` | TEXT | NULL | University logo image URL |
+| `campus_data` | JSONB | DEFAULT '{}' | Campus factors and variety score for quiz matching algorithm |
+| `city_data` | JSONB | DEFAULT '{}' | City factors and variety score for quiz matching algorithm |
 | `created_at` | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | Record creation timestamp |
+
+**JSONB Structure Examples**:
+```json
+// campus_data field - Campus environment factors
+{
+  "variety_score": 4.2,    // Campus variety/diversity (1-5 scale)
+  "factors": {
+    "library": true,           // Quality library resources
+    "studyspaces": true,       // Quiet study spaces available
+    "support": false,          // Academic advising/tutoring
+    "intlstudents": true,      // Large international community
+    "community": true,         // Collaborative student community
+    "social": false,           // Frequent social events
+    "gym": true,              // Gym and sports facilities
+    "dining": true,           // Quality dining options
+    "housing": false,         // Good student housing quality
+    "prayer": true,           // Prayer spaces available
+    "dietaryoptions": true,   // Dietary accommodations
+    "career": false,          // Career counseling services
+    "internship": true,       // Internship opportunities
+    "alumni": false,          // Strong alumni network
+    "smallcampus": false,     // Small campus environment
+    "largecampus": true,      // Large campus environment
+    "urban": true,            // Urban campus setting
+    "rural": false            // Rural/suburban setting
+  }
+}
+
+// city_data field - City environment factors
+{
+  "variety_score": 3.8,    // City variety/diversity (1-5 scale)
+  "factors": {
+    "largecity": true,        // Large city environment
+    "smallcity": false,       // Small city environment
+    "living": false,          // Affordable cost of living
+    "affordableho": false,    // Affordable housing options
+    "transport": true,        // Quality public transportation
+    "bike": true,            // Walkable/bike-friendly
+    "airport": true,         // Easy airport access
+    "museums": true,         // Museums and cultural venues
+    "nightlife": true,       // Vibrant nightlife/restaurants
+    "intlcity": true,        // International community
+    "centralil": true,       // Central Israel location
+    "northil": false,        // North Israel location
+    "southil": false         // South Israel location
+  }
+}
+```
 
 **Key Points**:
 - Master reference data managed by admins
 - Publicly readable for all users
 - Links to programs via one-to-many relationship
+- Campus and city data enable environment-based program matching
 
 ### 4. programs
 **Purpose**: Academic programs offered by universities, with application requirements and costs.
@@ -213,6 +264,7 @@ applications (1) ←→ (*) documents
 | `description` | TEXT | NULL | Program description and highlights |
 | `requirements` | JSONB | NULL | Application requirements and prerequisites |
 | `application_url` | TEXT | NULL | Direct link to program application |
+| `scoring_data` | JSONB | DEFAULT '{}' | Program matching scores and prerequisites for quiz algorithm |
 | `created_at` | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | Record creation timestamp |
 
 **JSONB Structure Example**:
@@ -227,6 +279,32 @@ applications (1) ←→ (*) documents
   },
   "prerequisites": ["Mathematics", "Physics"],
   "application_deadline": "2024-03-15"
+}
+
+// scoring_data field - Program matching algorithm data
+{
+  "riasec": {
+    "r": 2.1,    // Realistic score (0-4 scale)
+    "i": 3.8,    // Investigative score
+    "a": 1.2,    // Artistic score
+    "s": 4.0,    // Social score
+    "e": 2.5,    // Enterprising score
+    "c": 3.1     // Conventional score
+  },
+  "personality": {
+    "openness": 3.5,    // Big 5 Openness (1-5 scale)
+    "intensity": 4.2    // Academic intensity/conscientiousness alignment (1-5 scale)
+  },
+  "prerequisites": {
+    "min_gpa": 3.0,       // Minimum GPA required (0-4.0 scale)
+    "min_sat": 1200,      // Minimum SAT score (0 = not required)
+    "tuition": 15000,     // Annual tuition in USD
+    "scholarship_available": 1,  // 0=none, 1=partial, 2=full
+    "health_services": true,     // Health support available
+    "accessibility_support": false,  // Accessibility accommodations
+    "housing_types": ["oncampus", "offcampus"],  // Available housing options
+    "dietary_options": true      // Dietary accommodations available
+  }
 }
 ```
 
