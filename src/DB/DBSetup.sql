@@ -71,7 +71,10 @@ CREATE TABLE universities (
     image_url TEXT,
     tuition_avg_usd INTEGER,
     tuition_usd INTEGER,
+    tuition_in_state_usd INTEGER,
     living_cost_usd INTEGER,
+    living_cost_in_state_usd INTEGER,
+    state_code VARCHAR(2),
     languages TEXT[],
     campus_data JSONB DEFAULT '{}',
     city_data JSONB DEFAULT '{}',
@@ -107,6 +110,10 @@ CREATE TABLE programs (
     status TEXT DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Create indexes for universities table
+CREATE INDEX idx_universities_state_code ON universities(state_code);
+CREATE INDEX idx_universities_region ON universities(region);
 
 -- 6. Saved programs table
 CREATE TABLE saved_programs (

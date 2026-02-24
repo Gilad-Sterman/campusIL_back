@@ -1,4 +1,4 @@
-const TEST_12_QUESTIONS = [
+export const TEST_12_QUESTIONS = [
   // --- STAGE 1: PERSONAL PREFERENCES ---
   {
     id: 1,
@@ -264,14 +264,20 @@ const TEST_12_QUESTIONS = [
   { id: 37, key: 'q34', type: 'likert', title: "I act without thinking.", required: true, config: { min: 1, max: 5, labels: ['Inaccurate', 'Moderately Inaccurate', 'Neutral', 'Moderately Accurate', 'Accurate'] } }
 ];
 
+// FULL_QUIZ_QUESTIONS will be imported dynamically to avoid circular imports
+
 const V2_QUESTIONS = TEST_12_QUESTIONS;
+
+// Import full questions directly now that circular dependency is resolved
+import { FULL_QUIZ_QUESTIONS } from './fullQuizQuestions.js';
 
 export const QUIZ_QUESTION_SETS = {
   test12: TEST_12_QUESTIONS,
-  v2: V2_QUESTIONS
+  v2: V2_QUESTIONS,
+  full: FULL_QUIZ_QUESTIONS
 };
 
-const requestedQuizVersion = String(process.env.QUIZ_VERSION || 'test12').toLowerCase();
+const requestedQuizVersion = String(process.env.QUIZ_VERSION || 'full').toLowerCase();
 export const ACTIVE_QUIZ_VERSION = QUIZ_QUESTION_SETS[requestedQuizVersion] ? requestedQuizVersion : 'test12';
 
 export const QUIZ_QUESTIONS = QUIZ_QUESTION_SETS[ACTIVE_QUIZ_VERSION];

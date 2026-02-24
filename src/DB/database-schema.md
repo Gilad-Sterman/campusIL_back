@@ -176,19 +176,29 @@ applications (1) ←→ (*) documents
 - Maintains navigation history for proper back/forward functionality
 
 ### 4. universities
-**Purpose**: Master data for Israeli universities in the platform.
+**Purpose**: Master data for Israeli and US universities in the platform with in-state/out-of-state tuition support.
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique university identifier |
 | `name` | TEXT | NOT NULL | Official university name |
 | `city` | TEXT | NOT NULL | University location |
+| `region` | TEXT | NULL | University region (e.g., "United States", "Israel") |
 | `description` | TEXT | NULL | University description and highlights |
 | `website_url` | TEXT | NULL | Official university website |
 | `application_url` | TEXT | NULL | Direct link to application portal |
 | `logo_url` | TEXT | NULL | University logo image URL |
+| `image_url` | TEXT | NULL | University campus image URL |
+| `tuition_avg_usd` | INTEGER | NULL | Average tuition cost (legacy field) |
+| `tuition_usd` | INTEGER | NULL | Out-of-state tuition cost in USD |
+| `tuition_in_state_usd` | INTEGER | NULL | In-state tuition cost in USD (US universities only) |
+| `living_cost_usd` | INTEGER | NULL | Out-of-state living costs in USD |
+| `living_cost_in_state_usd` | INTEGER | NULL | In-state living costs in USD (US universities only) |
+| `state_code` | VARCHAR(2) | NULL | US state code (e.g., "CA", "NY", "FL") for in-state calculations |
+| `languages` | TEXT[] | NULL | Languages of instruction |
 | `campus_data` | JSONB | DEFAULT '{}' | Campus factors and variety score for quiz matching algorithm |
 | `city_data` | JSONB | DEFAULT '{}' | City factors and variety score for quiz matching algorithm |
+| `status` | TEXT | DEFAULT 'active' | University status (active, inactive) |
 | `created_at` | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | Record creation timestamp |
 
 **JSONB Structure Examples**:
@@ -239,11 +249,20 @@ applications (1) ←→ (*) documents
 }
 ```
 
+**Tuition Logic**:
+- **`tuition_usd`**: Out-of-state tuition (default for all users)
+- **`tuition_in_state_usd`**: In-state tuition (US universities only, when user's state matches university's state)
+- **`living_cost_usd`**: Out-of-state living costs (default)
+- **`living_cost_in_state_usd`**: In-state living costs (US universities only, when applicable)
+- **`state_code`**: Used for matching user's state (from `users.country`) with university location
+
 **Key Points**:
 - Master reference data managed by admins
 - Publicly readable for all users
 - Links to programs via one-to-many relationship
 - Campus and city data enable environment-based program matching
+- In-state/out-of-state tuition logic applies only to US universities (`region = 'United States'`)
+- Israeli universities use standard `tuition_usd` and `living_cost_usd` fields
 
 ### 4. programs
 **Purpose**: Academic programs offered by universities, with application requirements and costs.

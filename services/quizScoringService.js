@@ -169,7 +169,7 @@ class QuizScoringService {
   
   /**
    * Calculate Big 5 Openness score from quiz answers
-   * Will return null for current 40-question quiz (questions not available)
+   * Uses questions Q35-Q58 (IDs 39-62 in full quiz)
    */
   _calculateOpenness(answerEntries) {
     const questionMap = QUIZ_SCORING_CONFIG.questionMapping.openness;
@@ -178,13 +178,41 @@ class QuizScoringService {
       return { score: null, tag: null };
     }
     
-    // Implementation will be similar to conscientiousness when openness questions are added
-    return { score: null, tag: null };
+    const answerMap = this._buildAnswerMap(answerEntries);
+    let totalScore = 0;
+    let validAnswers = 0;
+    
+    // Calculate openness score using the mapped questions
+    questionMap.forEach(questionId => {
+      const answer = answerMap[questionId];
+      if (answer !== undefined && answer !== null) {
+        totalScore += Number(answer);
+        validAnswers++;
+      }
+    });
+    
+    if (validAnswers === 0) {
+      return { score: null, tag: null };
+    }
+    
+    // Calculate average score (1-5 scale)
+    const averageScore = Number((totalScore / validAnswers).toFixed(2));
+    
+    // Determine tag based on thresholds
+    const thresholds = QUIZ_SCORING_CONFIG.thresholds.openness;
+    let tag = 'Average';
+    if (averageScore >= thresholds.high) {
+      tag = 'High';
+    } else if (averageScore <= thresholds.low) {
+      tag = 'Low';
+    }
+    
+    return { score: averageScore, tag };
   }
   
   /**
    * Calculate RIASEC scores from quiz answers
-   * Will return null values for current 40-question quiz (questions not available)
+   * Handles nested activity rating questions (Q65-Q67)
    */
   _calculateRiasec(answerEntries) {
     const riasecMap = QUIZ_SCORING_CONFIG.questionMapping.riasec;
@@ -204,7 +232,33 @@ class QuizScoringService {
       return scores;
     }
     
-    // Implementation will calculate RIASEC scores when questions are added for 80-question quiz
+    // Build answer map for easy lookup
+    const answerMap = this._buildAnswerMap(answerEntries);
+    
+    // Calculate scores for each RIASEC category
+    Object.keys(riasecMap).forEach(category => {
+      const activities = riasecMap[category];
+      if (activities.length === 0) {
+        return;
+      }
+      
+      let totalScore = 0;
+      let validAnswers = 0;
+      
+      activities.forEach(({ questionId, activityId }) => {
+        const questionAnswer = answerMap[questionId];
+        if (questionAnswer && typeof questionAnswer === 'object' && questionAnswer[activityId] !== undefined) {
+          totalScore += Number(questionAnswer[activityId]);
+          validAnswers++;
+        }
+      });
+      
+      // Calculate average score for this category (0-4 scale)
+      if (validAnswers > 0) {
+        scores[category] = Number((totalScore / validAnswers).toFixed(2));
+      }
+    });
+    
     return scores;
   }
   
@@ -228,6 +282,7 @@ class QuizScoringService {
   generateBrillianceSummary(scoring) {
     const { conscientiousness, openness } = scoring.personality;
     const sectionWeights = scoring.sections;
+    const riasec = scoring.riasec;
     
     let summary = "";
     const traits = [];
@@ -243,6 +298,47 @@ class QuizScoringService {
       } else {
         summary += "You balance structure with flexibility in your approach to tasks and goals. ";
         traits.push('Balanced', 'Practical', 'Adaptable');
+      }
+    }
+    
+    // Analyze openness
+    if (openness && openness.score !== null) {
+      if (openness.tag === 'High') {
+        summary += "Your high openness indicates strong curiosity, creativity, and appreciation for new experiences and ideas. ";
+        traits.push('Creative', 'Curious', 'Open-minded');
+      } else if (openness.tag === 'Low') {
+        summary += "You prefer familiar approaches and practical solutions over abstract or experimental ideas. ";
+        traits.push('Practical', 'Traditional', 'Focused');
+      } else {
+        summary += "You show moderate openness, balancing new experiences with practical considerations. ";
+        traits.push('Balanced', 'Thoughtful', 'Selective');
+      }
+    }
+    
+    // Analyze RIASEC interests (find top 2 categories)
+    if (riasec) {
+      const riasecScores = Object.entries(riasec)
+        .filter(([_, score]) => score !== null)
+        .sort(([_, a], [__, b]) => b - a)
+        .slice(0, 2);
+      
+      if (riasecScores.length > 0) {
+        const topInterest = riasecScores[0][0];
+        const interestMap = {
+          realistic: { trait: 'Hands-on', description: 'practical, hands-on work' },
+          investigative: { trait: 'Analytical', description: 'research and analytical thinking' },
+          artistic: { trait: 'Creative', description: 'creative and artistic expression' },
+          social: { trait: 'People-focused', description: 'helping and working with people' },
+          enterprising: { trait: 'Leadership-oriented', description: 'leadership and business ventures' },
+          conventional: { trait: 'Detail-oriented', description: 'organized, systematic work' }
+        };
+        
+        if (interestMap[topInterest]) {
+          summary += `Your interests align strongly with ${interestMap[topInterest].description}. `;
+          if (!traits.includes(interestMap[topInterest].trait)) {
+            traits.push(interestMap[topInterest].trait);
+          }
+        }
       }
     }
     

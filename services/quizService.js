@@ -20,7 +20,7 @@ class QuizService {
     this.storage = storageService;
   }
 
-  _buildResultsPayload({ sessionId, completedAt, totalAnswers, avgScore, insights, source, scoringBundle }) {
+  _buildResultsPayload({ sessionId, completedAt, totalAnswers, avgScore, insights, source, scoringBundle, programMatches }) {
     return {
       contractVersion: QUIZ_SCORING_CONTRACT_VERSION,
       sessionId,
@@ -41,11 +41,12 @@ class QuizService {
         avgScore,
         completedAt
       },
-      scoring: scoringBundle?.scoring || null
+      scoring: scoringBundle?.scoring || null,
+      programMatches: programMatches || null
     };
   }
 
-  _buildComputedResults(answerEntries, { sessionId, completedAt, source }) {
+  async _buildComputedResults(answerEntries, { sessionId, completedAt, source }) {
     const normalizedAnswers = Array.isArray(answerEntries) ? answerEntries : [];
     const scoringBundle = quizScoringService.calculateScoring(normalizedAnswers);
     const numericAnalytics = quizScoringService.calculateNumericAnswerAnalytics(normalizedAnswers);
@@ -58,6 +59,25 @@ class QuizService {
       recommendation: this._generatePersonalizedRecommendation(scoringBundle.scoring)
     };
 
+    // Get program matches for mini results
+    let programMatches = null;
+    try {
+      const { default: programMatchingService } = await import('./programMatchingService.js');
+      
+      const studentProfile = {
+        riasec_scores: scoringBundle.scoring.riasec_scores,
+        personality_scores: scoringBundle.scoring.personality_scores,
+        section_weights: scoringBundle.scoring.section_weights,
+        brilliance_summary: brillianceInsights.summary,
+        answers: normalizedAnswers
+      };
+      
+      const matchingResult = await programMatchingService.matchPrograms(studentProfile);
+      programMatches = matchingResult.success ? matchingResult.programs : null;
+    } catch (error) {
+      console.warn('Failed to get program matches for mini results:', error);
+    }
+
     return this._buildResultsPayload({
       sessionId,
       completedAt,
@@ -65,7 +85,8 @@ class QuizService {
       avgScore: numericAnalytics.numericAverage,
       insights,
       source,
-      scoringBundle
+      scoringBundle,
+      programMatches
     });
   }
 
@@ -239,7 +260,7 @@ class QuizService {
         source: 'answers_payload'
       });
 
-      return this._buildComputedResults(answers, {
+      return await this._buildComputedResults(answers, {
         sessionId: sessionId || null,
         completedAt: completedAt || new Date().toISOString(),
         source: 'backend_mini_payload'
@@ -256,7 +277,7 @@ class QuizService {
     // Analytics event
     await this._trackEvent('summary_viewed', { sessionId, userType: 'anonymous' });
 
-    return this._buildComputedResults(answerEntries, {
+    return await this._buildComputedResults(answerEntries, {
       sessionId,
       completedAt: session.lastAnsweredAt,
       source: 'backend_mini'
@@ -339,7 +360,7 @@ class QuizService {
     }
 
     if (completedQuiz) {
-      const results = this._buildComputedResults(completedQuiz.answers || [], {
+      const results = await this._buildComputedResults(completedQuiz.answers || [], {
         sessionId: completedQuiz.id,
         completedAt: completedQuiz.completed_at,
         source: 'backend_profile'

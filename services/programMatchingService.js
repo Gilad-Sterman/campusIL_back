@@ -15,18 +15,27 @@ class ProgramMatchingService {
   async matchPrograms(studentProfile) {
     try {
       // Step 1: Get all programs with university data
-      const programs = await this._getAllPrograms();
+      const allPrograms = await this._getAllPrograms();
       
-      // Step 2: Calculate Degree_Score for each program
+      // Step 2: Filter programs by degree type preference (essential filter)
+      const degreeFilteredPrograms = this._filterProgramsByDegreeType(allPrograms, studentProfile);
+      
+      // Step 3: Filter programs by student's field preference (domain-based)
+      const programs = this._filterProgramsByDomain(degreeFilteredPrograms, studentProfile);
+      
+      // Step 3: Calculate Degree_Score for each program
       const scoredPrograms = programs.map(program => ({
         ...program,
         degree_score: this._calculateDegreeScore(studentProfile, program)
       }));
       
-      // Step 3: Apply essential prerequisites and ranking logic
-      const rankedPrograms = this._applyPrerequisitesAndRanking(studentProfile, scoredPrograms);
+      // Step 4: Apply keyword-based program preference boost
+      const keywordBoostedPrograms = this._applyKeywordBoost(scoredPrograms, studentProfile);
       
-      // Step 4: Generate final output with prerequisite verdicts
+      // Step 5: Apply essential prerequisites and ranking logic
+      const rankedPrograms = this._applyPrerequisitesAndRanking(studentProfile, keywordBoostedPrograms);
+      
+      // Step 6: Generate final output with prerequisite verdicts
       const finalResults = rankedPrograms.slice(0, 3).map(program => 
         this._generateProgramOutput(studentProfile, program)
       );
@@ -85,6 +94,227 @@ class ProgramMatchingService {
       (cityFit * (0.15 + 0.30 * weights.city));
     
     return Math.round(degreeScore * 100) / 100; // Round to 2 decimal places
+  }
+  
+  /**
+   * Filter programs by degree type preference (Q7/Q6)
+   */
+  _filterProgramsByDegreeType(programs, studentProfile) {
+    const degreeTypes = this._getStudentDegreeTypes(studentProfile);
+    
+    if (!degreeTypes || degreeTypes.length === 0) {
+      return programs; // No filtering if no preference
+    }
+    
+    // Filter programs by degree_level matching selected types
+    return programs.filter(program => 
+      degreeTypes.includes(program.degree_level)
+    );
+  }
+  
+  /**
+   * Get student's degree type preferences from Q7 (Q6 key)
+   */
+  _getStudentDegreeTypes(studentProfile) {
+    if (!studentProfile.answers) return null;
+    
+    const answers = typeof studentProfile.answers === 'string' 
+      ? JSON.parse(studentProfile.answers) 
+      : studentProfile.answers;
+    
+    // Find Q7 answer (degree type preference)
+    const degreeAnswer = answers.find(answer => answer.questionId === 7);
+    
+    return degreeAnswer?.answer || null;
+  }
+  
+  /**
+   * Filter programs by student's domain preference
+   */
+  _filterProgramsByDomain(programs, studentProfile) {
+    const fieldPreference = this._getStudentFieldPreference(studentProfile);
+    
+    if (!fieldPreference) {
+      return programs; // No filtering if no preference
+    }
+    
+    const targetDomain = this._mapFieldToDomain(fieldPreference);
+    
+    if (!targetDomain) {
+      return programs; // No filtering if can't map to domain
+    }
+    
+    // Filter programs by domain
+    const filteredPrograms = programs.filter(program => program.domain === targetDomain);
+    
+    // If no programs in preferred domain, return all programs as fallback
+    return filteredPrograms.length > 0 ? filteredPrograms : programs;
+  }
+  
+  /**
+   * Get student's field preference from Q11 (two-level dropdown)
+   */
+  _getStudentFieldPreference(studentProfile) {
+    if (!studentProfile.answers) return null;
+    
+    const answers = typeof studentProfile.answers === 'string' 
+      ? JSON.parse(studentProfile.answers) 
+      : studentProfile.answers;
+    
+    // Find Q11 answer (field preference)
+    const fieldAnswer = answers.find(answer => answer.questionId === 11);
+    
+    return fieldAnswer?.answer || null;
+  }
+  
+  /**
+   * Map frontend field selection to backend domain
+   */
+  _mapFieldToDomain(fieldSelection) {
+    if (!fieldSelection || !fieldSelection.level1) return null;
+    
+    const domainMapping = {
+      'Innovation & Technology': 'Future Builders',
+      'Leadership & Influence': 'Power, Policy & Influence', 
+      'Arts & Creative Expression': 'Culture & Creativity',
+      'Social Impact & Human Services': 'Human Insight & Impact',
+      'Exploratory & Interdisciplinary': 'Explorative Paths'
+    };
+    
+    return domainMapping[fieldSelection.level1] || null;
+  }
+  
+  /**
+   * Apply keyword-based boost to programs based on specific interest selection
+   */
+  _applyKeywordBoost(programs, studentProfile) {
+    const fieldPreference = this._getStudentFieldPreference(studentProfile);
+    const confidence = this._getStudentConfidence(studentProfile);
+    
+    if (!fieldPreference || !fieldPreference.level2) {
+      return programs; // No boost if no specific interest selected
+    }
+    
+    const keywords = this._getKeywordsForInterest(fieldPreference.level2);
+    const confidenceMultiplier = this._getConfidenceMultiplier(confidence);
+    
+    return programs.map(program => {
+      const keywordScore = this._calculateKeywordScore(program, keywords);
+      const boost = keywordScore * confidenceMultiplier;
+      
+      return {
+        ...program,
+        degree_score: program.degree_score + boost,
+        keyword_boost: boost,
+        matched_keywords: keywordScore > 0 ? keywords.filter(keyword => 
+          this._programContainsKeyword(program, keyword)
+        ) : []
+      };
+    });
+  }
+  
+  /**
+   * Get student confidence level from Q12
+   */
+  _getStudentConfidence(studentProfile) {
+    if (!studentProfile.answers) return 3; // Default neutral
+    
+    const answers = typeof studentProfile.answers === 'string' 
+      ? JSON.parse(studentProfile.answers) 
+      : studentProfile.answers;
+    
+    const confidenceAnswer = answers.find(answer => answer.questionId === 12);
+    return confidenceAnswer?.answer || 3;
+  }
+  
+  /**
+   * Map specific interest to search keywords
+   */
+  _getKeywordsForInterest(interest) {
+    const keywordMap = {
+      // Innovation & Technology
+      'entrepreneurship': ['entrepreneurship', 'entrepreneur', 'startup', 'innovation', 'venture'],
+      'technology': ['computer science', 'technology', 'tech', 'software', 'programming'],
+      'engineering': ['engineering', 'biomedical', 'technical', 'design', 'development'],
+      'sustainability': ['environmental', 'sustainability', 'sustainable', 'climate', 'green'],
+      'data_science': ['data science', 'analytics', 'data', 'statistics', 'research'],
+      
+      // Leadership & Influence  
+      'business_leadership': ['business', 'management', 'leadership', 'administration', 'executive'],
+      'government': ['government', 'political', 'policy', 'public', 'administration'],
+      'communications': ['communications', 'media', 'journalism', 'public relations', 'marketing'],
+      'international_relations': ['international', 'relations', 'diplomacy', 'global', 'foreign'],
+      'policy': ['policy', 'governance', 'public administration', 'regulation', 'law'],
+      
+      // Arts & Creative Expression
+      'music': ['music', 'musical', 'performance', 'composition', 'musicology'],
+      'film': ['film', 'cinema', 'documentary', 'media', 'production'],
+      'liberal_arts': ['liberal arts', 'humanities', 'literature', 'philosophy', 'history'],
+      'creative_writing': ['writing', 'literature', 'english', 'language', 'linguistics'],
+      'interdisciplinary_arts': ['interdisciplinary', 'arts', 'creative', 'cultural', 'design'],
+      
+      // Social Impact & Human Services
+      'social_work': ['social', 'community', 'development', 'service', 'welfare'],
+      'emergency_management': ['emergency', 'disaster', 'management', 'crisis', 'response'],
+      'conflict_resolution': ['conflict', 'resolution', 'mediation', 'peace', 'negotiation'],
+      'public_health': ['health', 'public health', 'medical', 'healthcare', 'wellness'],
+      'education': ['education', 'teaching', 'learning', 'academic', 'pedagogy'],
+      
+      // Exploratory & Interdisciplinary
+      'undecided': [], // No keywords - no boost
+      'dual_degree': ['dual', 'double', 'combined', 'joint', 'interdisciplinary'],
+      'interdisciplinary': ['interdisciplinary', 'multidisciplinary', 'cross-disciplinary'],
+      'research': ['research', 'academic', 'scholarly', 'investigation', 'study'],
+      'global_studies': ['global', 'international', 'cultural', 'world', 'comparative']
+    };
+    
+    return keywordMap[interest] || [];
+  }
+  
+  /**
+   * Calculate keyword match score for a program
+   */
+  _calculateKeywordScore(program, keywords) {
+    if (keywords.length === 0) return 0;
+    
+    let matchCount = 0;
+    keywords.forEach(keyword => {
+      if (this._programContainsKeyword(program, keyword)) {
+        matchCount++;
+      }
+    });
+    
+    // Return percentage of keywords matched * 10 (max 10 point boost)
+    return (matchCount / keywords.length) * 10;
+  }
+  
+  /**
+   * Check if program contains keyword in name, discipline, or description
+   */
+  _programContainsKeyword(program, keyword) {
+    const searchText = [
+      program.name || '',
+      program.discipline || '',
+      program.description || '',
+      program.field || ''
+    ].join(' ').toLowerCase();
+    
+    return searchText.includes(keyword.toLowerCase());
+  }
+  
+  /**
+   * Get confidence multiplier based on certainty level
+   */
+  _getConfidenceMultiplier(confidence) {
+    const multipliers = {
+      1: 0.2, // Still exploring - minimal boost
+      2: 0.4, // Leaning this way - small boost  
+      3: 0.6, // Pretty sure - moderate boost
+      4: 0.8, // Very confident - strong boost
+      5: 1.0  // Completely certain - full boost
+    };
+    
+    return multipliers[confidence] || 0.6;
   }
   
   /**
@@ -341,9 +571,16 @@ class ProgramMatchingService {
    * Get student selected campus factors from quiz
    */
   _getStudentCampusFactors(studentProfile) {
-    // This would come from Q62 in the quiz - for now return empty array
-    // TODO: Extract from quiz answers when Q62 is implemented
-    return [];
+    if (!studentProfile.answers) return [];
+    
+    const answers = typeof studentProfile.answers === 'string' 
+      ? JSON.parse(studentProfile.answers) 
+      : studentProfile.answers;
+    
+    // Find Q70 answer (campus preferences)
+    const campusAnswer = answers.find(answer => answer.questionId === 70);
+    
+    return campusAnswer?.answer || [];
   }
   
   /**
@@ -377,9 +614,39 @@ class ProgramMatchingService {
    * Calculate city factors score
    */
   _calculateCityFactors(studentProfile, program) {
-    // Similar to campus factors - would come from Q63
-    // For now return neutral score
-    return 50;
+    // Get student selected city factors from quiz answers
+    const selectedFactors = this._getStudentCityFactors(studentProfile);
+    const cityData = program.university?.city_data || {};
+    const cityFactorsData = cityData.factors || {};
+    
+    if (selectedFactors.length === 0) return 50; // Neutral score if no preferences
+    
+    // Count matches
+    let matchedFactors = 0;
+    selectedFactors.forEach(factor => {
+      if (cityFactorsData[factor] === true) {
+        matchedFactors++;
+      }
+    });
+    
+    // Calculate percentage score
+    return (matchedFactors / selectedFactors.length) * 100;
+  }
+  
+  /**
+   * Get student selected city factors from quiz
+   */
+  _getStudentCityFactors(studentProfile) {
+    if (!studentProfile.answers) return [];
+    
+    const answers = typeof studentProfile.answers === 'string' 
+      ? JSON.parse(studentProfile.answers) 
+      : studentProfile.answers;
+    
+    // Find Q72 answer (city preferences)
+    const cityAnswer = answers.find(answer => answer.questionId === 72);
+    
+    return cityAnswer?.answer || [];
   }
   
   /**
@@ -462,19 +729,60 @@ class ProgramMatchingService {
   }
   
   /**
-   * Get student budget from quiz
+   * Get student budget from quiz (Q75)
    */
   _getStudentBudget(studentProfile) {
-    // This would come from Q65 - for now return null (no budget constraint)
-    return null;
+    if (!studentProfile.answers) return null;
+    
+    const answers = typeof studentProfile.answers === 'string' 
+      ? JSON.parse(studentProfile.answers) 
+      : studentProfile.answers;
+    
+    // Find Q75 answer (budget)
+    const budgetAnswer = answers.find(answer => answer.questionId === 75);
+    
+    if (!budgetAnswer?.answer) return null;
+    
+    // Convert budget range to upper bound value (as per specification)
+    const budgetMap = {
+      'under_5000': 5000,
+      '5000_10000': 10000,
+      '10000_15000': 15000,
+      '15000_20000': 20000,
+      '20000_30000': 30000,
+      'over_30000': 99999
+    };
+    
+    return budgetMap[budgetAnswer.answer] || null;
   }
   
   /**
-   * Get student GPA from quiz
+   * Get student GPA from quiz (Q83)
    */
   _getStudentGpa(studentProfile) {
-    // This would come from Q73 - for now return null (no GPA constraint)
-    return null;
+    if (!studentProfile.answers) return null;
+    
+    const answers = typeof studentProfile.answers === 'string' 
+      ? JSON.parse(studentProfile.answers) 
+      : studentProfile.answers;
+    
+    // Find Q83 answer (GPA)
+    const gpaAnswer = answers.find(answer => answer.questionId === 83);
+    
+    if (!gpaAnswer?.answer) return null;
+    
+    // Convert GPA range to numeric value (using midpoint of ranges)
+    const gpaMap = {
+      'below_2_5': 2.25,
+      '2_5_2_9': 2.7,
+      '3_0_3_2': 3.1,
+      '3_3_3_5': 3.4,
+      '3_6_3_8': 3.7,
+      '3_9_4_0': 3.95,
+      'dont_know': null
+    };
+    
+    return gpaMap[gpaAnswer.answer] || null;
   }
   
   /**

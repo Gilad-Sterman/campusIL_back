@@ -48,18 +48,54 @@ export const QUIZ_SCORING_CONFIG = {
       { key: 37, reverse: true }   // "I act without thinking"
     ],
     
-    // RIASEC questions (not available in current 40-question quiz, will be added for 80-question version)
+    // RIASEC activity questions (Q65-Q67 from full quiz - nested rating questions)
     riasec: {
-      realistic: [],
-      investigative: [],
-      artistic: [],
-      social: [],
-      enterprising: [],
-      conventional: []
+      realistic: [
+        { questionId: 65, activityId: 'activity_1' },  // Build kitchen cabinets
+        { questionId: 65, activityId: 'activity_7' },  // Repair household appliances
+        { questionId: 66, activityId: 'activity_13' }, // Assemble electronic parts
+        { questionId: 66, activityId: 'activity_19' }, // Drive a truck to deliver packages
+        { questionId: 67, activityId: 'activity_25' }  // Test the quality of parts before shipment
+      ],
+      investigative: [
+        { questionId: 65, activityId: 'activity_2' },  // Develop a new medicine
+        { questionId: 65, activityId: 'activity_8' },  // Study ways to reduce water pollution
+        { questionId: 66, activityId: 'activity_14' }, // Conduct chemical experiments
+        { questionId: 66, activityId: 'activity_20' }, // Examine blood samples using a microscope
+        { questionId: 67, activityId: 'activity_26' }  // Develop a way to better predict the weather
+      ],
+      artistic: [
+        { questionId: 65, activityId: 'activity_3' },  // Write books or plays
+        { questionId: 65, activityId: 'activity_9' },  // Compose or arrange music
+        { questionId: 66, activityId: 'activity_15' }, // Create special effects for movies
+        { questionId: 67, activityId: 'activity_21' }, // Paint sets for plays
+        { questionId: 67, activityId: 'activity_27' }  // Write scripts for movies or television shows
+      ],
+      social: [
+        { questionId: 65, activityId: 'activity_4' },  // Help people with personal or emotional problems
+        { questionId: 65, activityId: 'activity_10' }, // Give career guidance to people
+        { questionId: 66, activityId: 'activity_16' }, // Perform rehabilitation therapy
+        { questionId: 67, activityId: 'activity_22' }, // Do volunteer work at a non-profit organization
+        { questionId: 67, activityId: 'activity_28' }  // Teach a high-school class
+      ],
+      enterprising: [
+        { questionId: 65, activityId: 'activity_5' },  // Manage a department within a large company
+        { questionId: 66, activityId: 'activity_11' }, // Start your own business
+        { questionId: 66, activityId: 'activity_17' }, // Negotiate business contracts
+        { questionId: 67, activityId: 'activity_23' }, // Market a new line of clothing
+        { questionId: 67, activityId: 'activity_29' }  // Sell merchandise at a department store
+      ],
+      conventional: [
+        { questionId: 65, activityId: 'activity_6' },  // Install software across computers on a large network
+        { questionId: 66, activityId: 'activity_12' }, // Operate a calculator
+        { questionId: 66, activityId: 'activity_18' }, // Keep shipping and receiving records
+        { questionId: 67, activityId: 'activity_24' }, // Inventory supplies using a hand-held computer
+        { questionId: 67, activityId: 'activity_30' }  // Stamp, sort, and distribute mail for an organization
+      ]
     },
     
-    // Big 5 Openness questions (not available in current 40-question quiz)
-    openness: []
+    // Big 5 Openness questions (Q35-Q58 from full quiz)
+    openness: [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]
   },
   
   // Personality scoring thresholds (based on quiz specs)

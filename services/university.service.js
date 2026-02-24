@@ -159,16 +159,30 @@ class UniversityService {
         throw new Error(`Failed to fetch universities with costs: ${error.message}`);
       }
 
-      // Transform the data to include cost information
+      // Transform the data for frontend consumption
       const universitiesWithCosts = data.map(university => {
         return {
           id: university.id,
           name: university.name,
           city: university.city,
           country: university.region || 'Israel',
+          isUS: university.region === 'United States',
+          // Raw database fields for frontend tuition calculation
+          tuition_avg_usd: university.tuition_avg_usd,
+          tuition_in_state_usd: university.tuition_in_state_usd,
+          living_cost_usd: university.living_cost_usd,
+          living_cost_in_state_usd: university.living_cost_in_state_usd,
+          state_code: university.state_code,
+          // Legacy fields for compatibility
           tuition: university.tuition_avg_usd || 0,
           cityLivingCost: university.living_cost_usd || 0,
-          isUS: university.region === 'United States'
+          rawUniversity: {
+            tuition_avg_usd: university.tuition_avg_usd,
+            tuition_in_state_usd: university.tuition_in_state_usd,
+            living_cost_usd: university.living_cost_usd,
+            living_cost_in_state_usd: university.living_cost_in_state_usd,
+            state_code: university.state_code
+          }
         };
       });
 
