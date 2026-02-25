@@ -179,7 +179,7 @@ class QuizController {
    */
   async transferAnonymousQuiz(req, res) {
     try {
-      const { sessionId, userId, userData, resolveConflicts } = req.body;
+      const { sessionId, userId, userData, resolveConflicts, quizData } = req.body;
 
       if (!sessionId || !userId) {
         return res.status(400).json({
@@ -191,7 +191,7 @@ class QuizController {
       let result;
       if (resolveConflicts) {
         // Use new conflict resolution method
-        result = await quizService.transferAnonymousQuizWithConflicts(sessionId, userId, userData);
+        result = await quizService.transferAnonymousQuizWithConflicts(sessionId, userId, userData, quizData);
       } else {
         // Use original method for backward compatibility
         result = await quizService.transferAnonymousQuiz(sessionId, userId, userData);

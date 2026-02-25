@@ -542,8 +542,9 @@ class QuizService {
    * @param {string} sessionId - Anonymous session ID
    * @param {string} userId - User ID
    * @param {Object} userData - User data
+   * @param {Object} quizData - Complete quiz data from frontend
    */
-  async transferAnonymousQuizWithConflicts(sessionId, userId, userData) {
+  async transferAnonymousQuizWithConflicts(sessionId, userId, userData, quizData) {
     // Get current user state
     const userState = await this.getUserQuizState(userId);
     
@@ -558,15 +559,17 @@ class QuizService {
       };
     }
 
-    // Get anonymous session
-    const session = await this.storage.getQuizSession(sessionId);
-    if (!session) {
+    // Use quiz data from frontend instead of storage lookup
+    if (!quizData || !quizData.answers || quizData.answers.length === 0) {
       return {
         transferred: false,
-        reason: 'no_anonymous_session',
-        message: 'No anonymous session found'
+        reason: 'no_quiz_data',
+        message: 'No quiz data provided for transfer'
       };
     }
+
+    // Use the provided quiz data as our session
+    const session = quizData;
 
     // Handle different scenarios
     if (session.status === 'completed') {
@@ -575,7 +578,7 @@ class QuizService {
       const scoringBundle = quizScoringService.calculateScoring(session.answers);
       const brillianceInsights = quizScoringService.generateBrillianceSummary(scoringBundle.scoring);
 
-      const quizData = {
+      const completedQuizData = {
         user_id: userId,
         answers: session.answers,
         total_questions: session.totalQuestions || getTotalQuestions(),
@@ -591,7 +594,7 @@ class QuizService {
 
       const { data, error } = await supabase
         .from('quiz_answers')
-        .insert(quizData)
+        .insert(completedQuizData)
         .select()
         .single();
 
