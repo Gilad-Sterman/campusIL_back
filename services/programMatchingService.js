@@ -814,7 +814,9 @@ class ProgramMatchingService {
       application_url: program.application_url,
       essential_pass: program.prerequisites.essential_pass,
       prerequisite_verdict: prerequisiteVerdict,
-      non_essential_flags: program.prerequisites.non_essential_flags
+      non_essential_flags: program.prerequisites.non_essential_flags,
+      program_image_url: program.image_url || null,
+      university_logo_url: program.university?.logo_url || null
     };
   }
   
