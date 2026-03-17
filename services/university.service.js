@@ -167,6 +167,10 @@ class UniversityService {
           city: university.city,
           country: university.region || 'Israel',
           isUS: university.region === 'United States',
+          // Add logo_url for carousel display
+          logo_url: university.logo_url,
+          // Add status field for filtering
+          status: university.status,
           // Raw database fields for frontend tuition calculation
           tuition_avg_usd: university.tuition_avg_usd,
           tuition_in_state_usd: university.tuition_in_state_usd,
