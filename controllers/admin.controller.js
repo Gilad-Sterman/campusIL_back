@@ -316,7 +316,7 @@ class AdminController {
                 region: 'Region',
                 description: 'Description',
                 application_url: 'Application URL',
-                tuition_usd: 'Tuition',
+                tuition_avg_usd: 'Tuition',
                 living_cost_usd: 'Living cost'
             };
 
@@ -341,10 +341,57 @@ class AdminController {
             }
 
             // Validate numeric fields
-            if (isNaN(parseInt(universityData.tuition_usd)) || parseInt(universityData.tuition_usd) < 0) {
+            if (isNaN(parseInt(universityData.tuition_avg_usd)) || parseInt(universityData.tuition_avg_usd) < 0) {
                 return res.status(400).json({
                     success: false,
                     error: 'Tuition must be a valid positive number'
+                });
+            }
+
+            // Validate optional new numeric fields if provided
+            const optionalNumericFields = ['tuition_bachelor_min', 'tuition_bachelor_max', 'tuition_master_min', 'tuition_master_max'];
+            for (const field of optionalNumericFields) {
+                if (universityData[field] !== null && universityData[field] !== undefined && universityData[field] !== '') {
+                    if (isNaN(parseInt(universityData[field])) || parseInt(universityData[field]) < 0) {
+                        return res.status(400).json({
+                            success: false,
+                            error: `${field.replace(/_/g, ' ')} must be a valid positive number`
+                        });
+                    }
+                }
+            }
+
+            // Validate tuition ranges if both min and max are provided
+            if (universityData.tuition_bachelor_min && universityData.tuition_bachelor_max) {
+                if (parseInt(universityData.tuition_bachelor_min) > parseInt(universityData.tuition_bachelor_max)) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Bachelor tuition minimum cannot be greater than maximum'
+                    });
+                }
+            }
+
+            if (universityData.tuition_master_min && universityData.tuition_master_max) {
+                if (parseInt(universityData.tuition_master_min) > parseInt(universityData.tuition_master_max)) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Master tuition minimum cannot be greater than maximum'
+                    });
+                }
+            }
+
+            // Validate text field lengths for new fields
+            if (universityData.global_recognition && (universityData.global_recognition.length < 10 || universityData.global_recognition.length > 500)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Global recognition must be between 10 and 500 characters'
+                });
+            }
+
+            if (universityData.more_about && (universityData.more_about.length < 10 || universityData.more_about.length > 500)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'More about section must be between 10 and 500 characters'
                 });
             }
 

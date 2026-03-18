@@ -176,7 +176,7 @@ applications (1) ←→ (*) documents
 - Maintains navigation history for proper back/forward functionality
 
 ### 4. universities
-**Purpose**: Master data for Israeli and US universities in the platform with in-state/out-of-state tuition support.
+**Purpose**: Master data for Israeli and US universities in the platform with in-state/out-of-state tuition support and enhanced details page fields.
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
@@ -189,6 +189,14 @@ applications (1) ←→ (*) documents
 | `application_url` | TEXT | NULL | Direct link to application portal |
 | `logo_url` | TEXT | NULL | University logo image URL |
 | `image_url` | TEXT | NULL | University campus image URL |
+| `global_recognition` | TEXT | CHECK (IS NULL OR = '' OR (char_length >= 10 AND char_length <= 500)) | Global recognition text for details page (optional) |
+| `more_about` | TEXT | CHECK (IS NULL OR = '' OR (char_length >= 10 AND char_length <= 500)) | More about us section for details page (optional) |
+| `tuition_bachelor_min` | INTEGER | CHECK (>= 0) | Minimum bachelor's tuition (USD/year) |
+| `tuition_bachelor_max` | INTEGER | CHECK (>= 0) | Maximum bachelor's tuition (USD/year) |
+| `tuition_master_min` | INTEGER | CHECK (>= 0) | Minimum master's tuition (USD/year) |
+| `tuition_master_max` | INTEGER | CHECK (>= 0) | Maximum master's tuition (USD/year) |
+| `dorms_available` | BOOLEAN | DEFAULT false | Whether dorms are available |
+| `university_images` | TEXT[] | CHECK (array_length <= 1) | Array of university images (max 1) |
 | `tuition_avg_usd` | INTEGER | NULL | Average tuition cost (legacy field) |
 | `tuition_usd` | INTEGER | NULL | Out-of-state tuition cost in USD |
 | `tuition_in_state_usd` | INTEGER | NULL | In-state tuition cost in USD (US universities only) |

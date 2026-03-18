@@ -12,10 +12,12 @@ class SearchController {
    */
   async searchPrograms(req, res) {
     try {
-      const { q: query = '', limit } = req.query;
+      const { q: query = '', limit, university_id, status } = req.query;
       
       const options = {};
       if (limit) options.limit = parseInt(limit);
+      if (university_id) options.university_id = university_id;
+      if (status) options.status = status;
 
       const results = await searchService.searchPrograms(query, options);
 

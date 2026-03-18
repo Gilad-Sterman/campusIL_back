@@ -69,6 +69,16 @@ CREATE TABLE universities (
     application_url TEXT,
     logo_url TEXT,
     image_url TEXT,
+    -- New fields for enhanced university details page
+    global_recognition TEXT CHECK (global_recognition IS NULL OR global_recognition = '' OR (char_length(global_recognition) >= 10 AND char_length(global_recognition) <= 500)),
+    more_about TEXT CHECK (more_about IS NULL OR more_about = '' OR (char_length(more_about) >= 10 AND char_length(more_about) <= 500)),
+    tuition_bachelor_min INTEGER CHECK (tuition_bachelor_min >= 0),
+    tuition_bachelor_max INTEGER CHECK (tuition_bachelor_max >= 0),
+    tuition_master_min INTEGER CHECK (tuition_master_min >= 0),
+    tuition_master_max INTEGER CHECK (tuition_master_max >= 0),
+    dorms_available BOOLEAN DEFAULT false,
+    university_images TEXT[], -- Array of image URLs, max 1 image as per spec
+    -- Existing tuition fields
     tuition_avg_usd INTEGER,
     tuition_usd INTEGER,
     tuition_in_state_usd INTEGER,
@@ -79,7 +89,11 @@ CREATE TABLE universities (
     campus_data JSONB DEFAULT '{}',
     city_data JSONB DEFAULT '{}',
     status TEXT DEFAULT 'active',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    -- Constraints for tuition ranges
+    CONSTRAINT tuition_bachelor_range_valid CHECK (tuition_bachelor_min IS NULL OR tuition_bachelor_max IS NULL OR tuition_bachelor_min <= tuition_bachelor_max),
+    CONSTRAINT tuition_master_range_valid CHECK (tuition_master_min IS NULL OR tuition_master_max IS NULL OR tuition_master_min <= tuition_master_max),
+    CONSTRAINT university_images_limit CHECK (array_length(university_images, 1) IS NULL OR array_length(university_images, 1) <= 1)
 );
 
 -- 5. Programs table

@@ -10,9 +10,9 @@ class SearchService {
    * Searches across: name, degree_level, discipline, career_horizon, domain
    * Returns grouped results by discipline
    */
-  async searchPrograms(query = '', options = {}) {
+  async searchPrograms(query, options = {}) {
     try {
-      const { limit = 50 } = options;
+      const { limit = 50, university_id, status } = options;
       
       let dbQuery = supabase
         .from('programs')
@@ -28,7 +28,12 @@ class SearchService {
           university_id,
           university:universities(id, name, city, logo_url)
         `)
-        .eq('status', 'active');
+        .eq('status', status || 'active');
+
+      // Filter by university if provided
+      if (university_id) {
+        dbQuery = dbQuery.eq('university_id', university_id);
+      }
 
       // Apply full-text search if query provided
       if (query && query.trim()) {
