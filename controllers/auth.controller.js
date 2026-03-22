@@ -465,12 +465,12 @@ export const verifySitePassword = async (req, res) => {
       .eq('config_key', 'site_password')
       .single();
 
-    if (password === '123456') {
-      return res.json({
-        success: true,
-        message: 'App unlocked'
-      });
-    }
+    // if (password === '123456') {
+    //   return res.json({
+    //     success: true,
+    //     message: 'App unlocked'
+    //   });
+    // }
 
     if (error || !data) {
       console.error('Site password lookup error:', error);
