@@ -8,7 +8,8 @@ import {
   getAuthUser,
   updateProfile,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  verifySitePassword
 } from '../controllers/auth.controller.js';
 import { authenticateUser, authenticateAuthOnly } from '../middleware/auth.js';
 
@@ -98,6 +99,7 @@ router.post('/login', loginValidation, login);
 router.post('/logout', logout);
 router.post('/forgot-password', forgotPasswordValidation, forgotPassword);
 router.post('/reset-password', resetPasswordValidation, resetPassword);
+router.post('/site-unlock', verifySitePassword);
 
 // Protected routes (require authentication)
 router.get('/me', authenticateUser, getProfile);

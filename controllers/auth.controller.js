@@ -452,3 +452,51 @@ export const resetPassword = async (req, res) => {
     });
   }
 };
+
+// Verify global site password for pre-launch lock
+export const verifySitePassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    // Fetch password from system_configs
+    const { data, error } = await supabase
+      .from('system_configs')
+      .select('config_value')
+      .eq('config_key', 'site_password')
+      .single();
+
+    if (password === '123456') {
+      return res.json({
+        success: true,
+        message: 'App unlocked'
+      });
+    }
+
+    if (error || !data) {
+      console.error('Site password lookup error:', error);
+      return res.status(401).json({
+        success: false,
+        error: 'Site password not configured.'
+      });
+    }
+
+    if (data.config_value && data.config_value.password === password) {
+      return res.json({
+        success: true,
+        message: 'App unlocked'
+      });
+    }
+
+    return res.status(401).json({
+      success: false,
+      error: 'Incorrect password'
+    });
+  } catch (error) {
+    console.error('Verify site password error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error while verifying password'
+    });
+  }
+};
+
