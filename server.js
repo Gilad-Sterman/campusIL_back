@@ -34,11 +34,18 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:", "http:"],
+      imgSrc: ["'self'", "data:", "https:", "http:", "https://res.cloudinary.com"],
       fontSrc: ["'self'", "https:", "data:"],
-      connectSrc: ["'self'"]
+      connectSrc: ["'self'", "https://*.supabase.co"],
     }
-  }
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year in seconds
+    includeSubDomains: true,
+    preload: true
+  },
+  crossOriginOpenerPolicy: { policy: "same-origin" },
+  originAgentCluster: true
 }));
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
