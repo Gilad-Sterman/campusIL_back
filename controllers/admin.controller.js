@@ -512,7 +512,6 @@ class AdminController {
                 career_horizon: 'Career horizon',
                 application_url: 'Application URL',
                 tuition_usd: 'Tuition',
-                living_cost_override_usd: 'Estimated living cost',
                 description: 'Description',
                 doc_requirements: 'Required documents',
                 status: 'Status'
