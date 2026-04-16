@@ -8,7 +8,16 @@ export const QUIZ_SCORING_CONFIG = {
       campus: 15,
       city: 15
     },
-    adaptivePool: 30
+    adaptivePool: 30,
+    // V3 specific weights
+    v3: {
+      base: { academic: 0.70, environment: 0.30 },
+      shifts: {
+        PRIORITY_ACADEMIC: { academic: 0.00, environment: 0.00 },
+        PRIORITY_CAREER: { academic: 0.10, environment: -0.10 },
+        PRIORITY_SOCIAL: { academic: -0.10, environment: 0.10 }
+      }
+    }
   },
   traits: {
     riasec: ['realistic', 'investigative', 'artistic', 'social', 'enterprising', 'conventional'],
@@ -19,117 +28,96 @@ export const QUIZ_SCORING_CONFIG = {
   questionMapping: {
     sectionWeights: { key: 5, type: 'constraint_slider' },
     
-    // Big 5 Conscientiousness questions (available in current 40-question quiz)
-    // Mapping actual questionIds from database (14-37) to conscientiousness questions
-    conscientiousness: [
-      { key: 14, reverse: false }, // "I complete tasks successfully"
-      { key: 15, reverse: false }, // "I excel in what I do"
-      { key: 16, reverse: false }, // "I handle tasks smoothly"
-      { key: 17, reverse: false }, // "I know how to get things done"
-      { key: 18, reverse: false }, // "I like to tidy up"
-      { key: 19, reverse: true },  // "I often forget to put things back"
-      { key: 20, reverse: true },  // "I leave a mess in my room"
-      { key: 21, reverse: true },  // "I leave my belongings around"
-      { key: 22, reverse: false }, // "I keep my promises"
-      { key: 23, reverse: false }, // "I tell the truth"
-      { key: 24, reverse: true },  // "I break rules"
-      { key: 25, reverse: true },  // "I break my promises"
-      { key: 26, reverse: false }, // "I do more than what's expected"
-      { key: 27, reverse: false }, // "I work hard"
-      { key: 28, reverse: true },  // "I put little time and effort into my work"
-      { key: 29, reverse: true },  // "I do just enough work to get by"
-      { key: 30, reverse: false }, // "I am always prepared"
-      { key: 31, reverse: false }, // "I carry out my plans"
-      { key: 32, reverse: true },  // "I waste my time"
-      { key: 33, reverse: true },  // "I have difficulty starting tasks"
-      { key: 34, reverse: true },  // "I jump into things without thinking"
-      { key: 35, reverse: true },  // "I make rash decisions"
-      { key: 36, reverse: true },  // "I rush into things"
-      { key: 37, reverse: true }   // "I act without thinking"
-    ],
-    
-    // RIASEC activity questions (Q65-Q67 from full quiz - nested rating questions)
-    riasec: {
-      realistic: [
-        { questionId: 65, activityId: 'activity_1' },  // Build kitchen cabinets
-        { questionId: 65, activityId: 'activity_7' },  // Repair household appliances
-        { questionId: 66, activityId: 'activity_13' }, // Assemble electronic parts
-        { questionId: 66, activityId: 'activity_19' }, // Drive a truck to deliver packages
-        { questionId: 67, activityId: 'activity_25' }  // Test the quality of parts before shipment
+    // V1 mapping (Full Quiz)
+    v1: {
+      conscientiousness: [
+        { key: 14, reverse: false }, { key: 15, reverse: false }, { key: 16, reverse: false },
+        { key: 17, reverse: false }, { key: 18, reverse: false }, { key: 19, reverse: true },
+        { key: 20, reverse: true }, { key: 21, reverse: true }, { key: 22, reverse: false },
+        { key: 23, reverse: false }, { key: 24, reverse: true }, { key: 25, reverse: true },
+        { key: 26, reverse: false }, { key: 27, reverse: false }, { key: 28, reverse: true },
+        { key: 29, reverse: true }, { key: 30, reverse: false }, { key: 31, reverse: false },
+        { key: 32, reverse: true }, { key: 33, reverse: true }, { key: 34, reverse: true },
+        { key: 35, reverse: true }, { key: 36, reverse: true }, { key: 37, reverse: true }
       ],
-      investigative: [
-        { questionId: 65, activityId: 'activity_2' },  // Develop a new medicine
-        { questionId: 65, activityId: 'activity_8' },  // Study ways to reduce water pollution
-        { questionId: 66, activityId: 'activity_14' }, // Conduct chemical experiments
-        { questionId: 66, activityId: 'activity_20' }, // Examine blood samples using a microscope
-        { questionId: 67, activityId: 'activity_26' }  // Develop a way to better predict the weather
-      ],
-      artistic: [
-        { questionId: 65, activityId: 'activity_3' },  // Write books or plays
-        { questionId: 65, activityId: 'activity_9' },  // Compose or arrange music
-        { questionId: 66, activityId: 'activity_15' }, // Create special effects for movies
-        { questionId: 67, activityId: 'activity_21' }, // Paint sets for plays
-        { questionId: 67, activityId: 'activity_27' }  // Write scripts for movies or television shows
-      ],
-      social: [
-        { questionId: 65, activityId: 'activity_4' },  // Help people with personal or emotional problems
-        { questionId: 65, activityId: 'activity_10' }, // Give career guidance to people
-        { questionId: 66, activityId: 'activity_16' }, // Perform rehabilitation therapy
-        { questionId: 67, activityId: 'activity_22' }, // Do volunteer work at a non-profit organization
-        { questionId: 67, activityId: 'activity_28' }  // Teach a high-school class
-      ],
-      enterprising: [
-        { questionId: 65, activityId: 'activity_5' },  // Manage a department within a large company
-        { questionId: 66, activityId: 'activity_11' }, // Start your own business
-        { questionId: 66, activityId: 'activity_17' }, // Negotiate business contracts
-        { questionId: 67, activityId: 'activity_23' }, // Market a new line of clothing
-        { questionId: 67, activityId: 'activity_29' }  // Sell merchandise at a department store
-      ],
-      conventional: [
-        { questionId: 65, activityId: 'activity_6' },  // Install software across computers on a large network
-        { questionId: 66, activityId: 'activity_12' }, // Operate a calculator
-        { questionId: 66, activityId: 'activity_18' }, // Keep shipping and receiving records
-        { questionId: 67, activityId: 'activity_24' }, // Inventory supplies using a hand-held computer
-        { questionId: 67, activityId: 'activity_30' }  // Stamp, sort, and distribute mail for an organization
-      ]
+      riasec: {
+        realistic: [
+          { questionId: 65, activityId: 'activity_1' }, { questionId: 65, activityId: 'activity_7' },
+          { questionId: 66, activityId: 'activity_13' }, { questionId: 66, activityId: 'activity_19' },
+          { questionId: 67, activityId: 'activity_25' }
+        ],
+        investigative: [
+          { questionId: 65, activityId: 'activity_2' }, { questionId: 65, activityId: 'activity_8' },
+          { questionId: 66, activityId: 'activity_14' }, { questionId: 66, activityId: 'activity_20' },
+          { questionId: 67, activityId: 'activity_26' }
+        ],
+        artistic: [
+          { questionId: 65, activityId: 'activity_3' }, { questionId: 65, activityId: 'activity_9' },
+          { questionId: 66, activityId: 'activity_15' }, { questionId: 67, activityId: 'activity_21' },
+          { questionId: 67, activityId: 'activity_27' }
+        ],
+        social: [
+          { questionId: 65, activityId: 'activity_4' }, { questionId: 65, activityId: 'activity_10' },
+          { questionId: 66, activityId: 'activity_16' }, { questionId: 67, activityId: 'activity_22' },
+          { questionId: 67, activityId: 'activity_28' }
+        ],
+        enterprising: [
+          { questionId: 65, activityId: 'activity_5' }, { questionId: 66, activityId: 'activity_11' },
+          { questionId: 66, activityId: 'activity_17' }, { questionId: 67, activityId: 'activity_23' },
+          { questionId: 67, activityId: 'activity_29' }
+        ],
+        conventional: [
+          { questionId: 65, activityId: 'activity_6' }, { questionId: 66, activityId: 'activity_12' },
+          { questionId: 66, activityId: 'activity_18' }, { questionId: 67, activityId: 'activity_24' },
+          { questionId: 67, activityId: 'activity_30' }
+        ]
+      },
+      openness: [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]
     },
-    
-    // Big 5 Openness questions (Q35-Q58 from full quiz)
-    openness: [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]
+    // V3 mapping (PathFinder V3)
+    v3: {
+      riasec: {
+        realistic: [5, 11, 27, 43, 49],
+        investigative: [6, 12, 28, 44, 50],
+        artistic: [7, 23, 29, 45, 51],
+        social: [8, 24, 40, 46, 52],
+        enterprising: [9, 25, 41, 47, 53],
+        conventional: [10, 26, 42, 48, 54]
+      },
+      openness: [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39],
+      priority: 56,
+      campusFactors: 55,
+      degreeLevel: 2,
+      euclideanConstant: 9.798
+    }
   },
   
   // Personality scoring thresholds (based on quiz specs)
   thresholds: {
-    conscientiousness: {
-      high: 4.0,    // >= 4.0 = High
-      low: 2.5      // <= 2.5 = Low, between = Average
-    },
-    openness: {
-      high: 4.0,
-      low: 2.5
-    }
+    conscientiousness: { high: 4.0, low: 2.5 },
+    openness: { high: 4.0, low: 2.5 }
   }
 };
 
 export const buildDefaultScoring = () => ({
   riasec: {
-    realistic: null,
-    investigative: null,
-    artistic: null,
-    social: null,
-    enterprising: null,
-    conventional: null
+    realistic: null, investigative: null, artistic: null,
+    social: null, enterprising: null, conventional: null
   },
   personality: {
     openness: { score: null, tag: null },
     conscientiousness: { score: null, tag: null },
-    extraversion: null,
-    agreeableness: null,
-    neuroticism: null
+    extraversion: null, agreeableness: null, neuroticism: null
   },
   sections: {
     degree: { score: null, weight: null },
     campus: { score: null, weight: null },
     city: { score: null, weight: null }
+  },
+  v3: {
+    academic_fit: null,
+    environment_fit: null,
+    weights: { academic: 0.7, environment: 0.3 }
   }
 });
+

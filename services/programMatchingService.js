@@ -14,37 +14,44 @@ class ProgramMatchingService {
    */
   async matchPrograms(studentProfile) {
     try {
+      // Detect version
+      const version = this._detectVersion(studentProfile.answers);
+      
       // Step 1: Get all programs with university data
       const allPrograms = await this._getAllPrograms();
       
-      // Step 2: Filter programs by degree type preference (essential filter)
-      const degreeFilteredPrograms = this._filterProgramsByDegreeType(allPrograms, studentProfile);
+      // Step 2: Filter programs by degree type preference (V3 uses student_degree_level from Q01)
+      const degreeFilteredPrograms = this._filterProgramsByDegreeType(allPrograms, studentProfile, version);
       
-      // Step 3: Filter programs by student's field preference (domain-based)
-      const programs = this._filterProgramsByDomain(degreeFilteredPrograms, studentProfile);
+      // Step 3: V3 does not strictly filter by domain, but calculates fit for all matching levels
+      // For V1, we still follow the domain filtering
+      const programs = version === 'v3' ? degreeFilteredPrograms : this._filterProgramsByDomain(degreeFilteredPrograms, studentProfile);
       
-      // Step 3: Calculate Degree_Score for each program
+      // Step 4: Calculate Score for each program
       const scoredPrograms = programs.map(program => ({
         ...program,
-        degree_score: this._calculateDegreeScore(studentProfile, program)
+        degree_score: this._calculateDegreeScore(studentProfile, program, version)
       }));
       
-      // Step 4: Apply keyword-based program preference boost
-      const keywordBoostedPrograms = this._applyKeywordBoost(scoredPrograms, studentProfile);
+      // Step 5: Post-processing (Keyword boost for V1, nothing extra for V3)
+      let processedPrograms = scoredPrograms;
+      if (version === 'v1') {
+        processedPrograms = this._applyKeywordBoost(scoredPrograms, studentProfile);
+      }
       
-      // Step 5: Apply essential prerequisites and ranking logic
-      const rankedPrograms = this._applyPrerequisitesAndRanking(studentProfile, keywordBoostedPrograms);
+      // Step 6: Apply prerequisites and ranking logic (V3 has specific tie-breaking)
+      const rankedPrograms = this._applyPrerequisitesAndRanking(studentProfile, processedPrograms, version);
       
-      // Step 6: Generate final output with prerequisite verdicts
-      const finalResults = rankedPrograms.slice(0, 3).map(program => 
-        this._generateProgramOutput(studentProfile, program)
+      // Step 7: Generate final output
+      const finalResults = rankedPrograms.slice(0, 9).map(program => 
+        this._generateProgramOutput(studentProfile, program, version)
       );
       
       return {
         success: true,
         programs: finalResults,
         total_programs_evaluated: programs.length,
-        matching_algorithm_version: '1.0'
+        matching_algorithm_version: version === 'v3' ? '3.0' : '1.0'
       };
       
     } catch (error) {
@@ -56,6 +63,21 @@ class ProgramMatchingService {
       };
     }
   }
+
+  _detectVersion(answers = []) {
+    if (!answers || answers.length === 0) return 'v1';
+    
+    // Check for explicit version tag
+    const versionTag = answers.find(a => a.version);
+    if (versionTag) return versionTag.version;
+
+    // Check for V3-specific question footprint
+    // Q2 (degree level) is mandatory in V3 but not present in V1
+    const hasV3Indicator = answers.some(a => a.questionId === 13 || a.questionId === 56);
+    return hasV3Indicator ? 'v3' : 'v1';
+  }
+
+
   
   /**
    * Fetch all active programs with university data
@@ -80,7 +102,11 @@ class ProgramMatchingService {
    *          (Campus_Fit × (0.15 + 0.30 × Campus_Weight)) + 
    *          (City_Fit × (0.15 + 0.30 × City_Weight))
    */
-  _calculateDegreeScore(studentProfile, program) {
+  _calculateDegreeScore(studentProfile, program, version = 'v1') {
+    if (version === 'v3') {
+      return this._calculateV3DegreeScore(studentProfile, program);
+    }
+
     const academicFit = this._calculateAcademicFit(studentProfile, program);
     const campusFit = this._calculateCampusFit(studentProfile, program);
     const cityFit = this._calculateCityFit(studentProfile, program);
@@ -95,38 +121,114 @@ class ProgramMatchingService {
     
     return Math.round(degreeScore * 100) / 100; // Round to 2 decimal places
   }
+
+  /**
+   * PathFinder V3 formula: (academic_fit x academic_weight) + (environment_fit x environment_weight)
+   */
+  _calculateV3DegreeScore(studentProfile, program) {
+    // Check both legacy and new structure
+    const v3Data = studentProfile?.v3 || {};
+    const academicWeight = studentProfile?.v3_weights?.academic ?? v3Data.weights?.academic ?? 0.7;
+    const environmentWeight = studentProfile?.v3_weights?.environment ?? v3Data.weights?.environment ?? 0.3;
+
+    const academicFit = this._calculateV3AcademicFit(studentProfile, program);
+    const environmentFit = this._calculateV3EnvironmentFit(studentProfile, program);
+
+
+    const score = (academicFit * academicWeight) + (environmentFit * environmentWeight);
+    return Math.round(score * 100) / 100;
+  }
+
+  _calculateV3AcademicFit(studentProfile, program) {
+    // 1. Similarity Score
+    const studentRiasec = this._getStudentRiasec(studentProfile);
+    const programRiasec = this._getProgramRiasec(program);
+    const distance = Math.sqrt(
+      Math.pow(studentRiasec.r - programRiasec.r, 2) +
+      Math.pow(studentRiasec.i - programRiasec.i, 2) +
+      Math.pow(studentRiasec.a - programRiasec.a, 2) +
+      Math.pow(studentRiasec.s - programRiasec.s, 2) +
+      Math.pow(studentRiasec.e - programRiasec.e, 2) +
+      Math.pow(studentRiasec.c - programRiasec.c, 2)
+    );
+    const similarityScore = 100 * (1 - (distance / 9.798));
+
+    // 2. Openness Modifier
+    const v3Data = studentProfile?.v3 || {};
+    const studentOpenness = studentProfile?.openness_score ?? v3Data.student_openness ?? 3.0; // V3 uses 1-5 scale
+    const programOpenness = program?.scoring_data?.personality?.openness ?? 2.5; // Fallback to 2.5
+    const opennessModifier = 5 * (1 - (Math.abs(studentOpenness - programOpenness) / 2));
+
+    return Math.max(0, Math.min(100, similarityScore + opennessModifier));
+
+  }
+
+  _calculateV3EnvironmentFit(studentProfile, program) {
+    // 1. Campus Match
+    const selectedFactors = this._getStudentCampusFactors(studentProfile, 'v3');
+    const campusFactorsData = program?.university?.campus_data?.factors || {};
+    
+    let matchedFactors = 0;
+    if (selectedFactors.length > 0) {
+      selectedFactors.forEach(factor => {
+        if (campusFactorsData[factor] === true || campusFactorsData[factor] === 1) {
+          matchedFactors++;
+        }
+      });
+    }
+    const campusMatch = selectedFactors.length > 0 ? (matchedFactors / selectedFactors.length) * 100 : 50;
+
+    // 2. Variety Modifier
+    const v3Data = studentProfile?.v3 || {};
+    const studentOpenness = studentProfile?.openness_score ?? v3Data.student_openness ?? 3.0;
+    const campusVarietyScore = program?.university?.campus_data?.variety_score ?? 2.5; // Fallback to 2.5
+    const varietyModifier = 4.0 * (1 - (Math.abs(studentOpenness - campusVarietyScore) / 2));
+
+
+    return Math.max(0, Math.min(100, campusMatch + varietyModifier));
+  }
+
   
   /**
    * Filter programs by degree type preference (Q7/Q6)
    */
-  _filterProgramsByDegreeType(programs, studentProfile) {
-    const degreeTypes = this._getStudentDegreeTypes(studentProfile);
+  _filterProgramsByDegreeType(programs, studentProfile, version = 'v1') {
+    const degreeTypes = this._getStudentDegreeTypes(studentProfile, version);
     
-    if (!degreeTypes || degreeTypes.length === 0) {
+    if (!degreeTypes || (Array.isArray(degreeTypes) && degreeTypes.length === 0)) {
       return programs; // No filtering if no preference
     }
     
-    // Filter programs by degree_level matching selected types
-    return programs.filter(program => 
-      degreeTypes.includes(program.degree_level)
-    );
+    // V3 uses single select LEVEL_BACHELOR / LEVEL_MASTERS
+    const targetLevels = Array.isArray(degreeTypes) ? degreeTypes : [degreeTypes];
+    
+    // Map V3 keys to program properties if needed
+    const levelMap = {
+      'LEVEL_BACHELOR': 'BA/BSc',
+      'LEVEL_MASTERS': 'MA/MSc/MBA'
+    };
+
+    return programs.filter(program => {
+      const pLevel = program.degree_level;
+      return targetLevels.some(t => t === pLevel || levelMap[t] === pLevel);
+    });
   }
+
   
   /**
    * Get student's degree type preferences from Q7 (Q6 key)
    */
-  _getStudentDegreeTypes(studentProfile) {
+  _getStudentDegreeTypes(studentProfile, version = 'v1') {
     if (!studentProfile.answers) return null;
     
-    const answers = typeof studentProfile.answers === 'string' 
-      ? JSON.parse(studentProfile.answers) 
-      : studentProfile.answers;
-    
-    // Find Q7 answer (degree type preference)
-    const degreeAnswer = answers.find(answer => answer.questionId === 7);
+    const answers = studentProfile.answers;
+    const qId = version === 'v3' ? 2 : 7;
+    const degreeAnswer = answers.find(answer => answer.questionId === qId);
     
     return degreeAnswer?.answer || null;
+
   }
+
   
   /**
    * Filter programs by student's domain preference
@@ -408,15 +510,17 @@ class ProgramMatchingService {
     const scoringData = program.scoring_data || {};
     const riasec = scoringData.riasec || {};
     
+    // Handing both structure (old and new names)
     return {
-      r: riasec.r || 2.5,
-      i: riasec.i || 2.5,
-      a: riasec.a || 2.5,
-      s: riasec.s || 2.5,
-      e: riasec.e || 2.5,
-      c: riasec.c || 2.5
+      r: riasec.r ?? riasec.realistic ?? 2.5,
+      i: riasec.i ?? riasec.investigative ?? 2.5,
+      a: riasec.a ?? riasec.artistic ?? 2.5,
+      s: riasec.s ?? riasec.social ?? 2.5,
+      e: riasec.e ?? riasec.enterprising ?? 2.5,
+      c: riasec.c ?? riasec.conventional ?? 2.5
     };
   }
+
   
   /**
    * Calculate conscientiousness modifier (-3 to +5 points)
@@ -570,18 +674,16 @@ class ProgramMatchingService {
   /**
    * Get student selected campus factors from quiz
    */
-  _getStudentCampusFactors(studentProfile) {
+  _getStudentCampusFactors(studentProfile, version = 'v1') {
     if (!studentProfile.answers) return [];
     
-    const answers = typeof studentProfile.answers === 'string' 
-      ? JSON.parse(studentProfile.answers) 
-      : studentProfile.answers;
-    
-    // Find Q70 answer (campus preferences)
-    const campusAnswer = answers.find(answer => answer.questionId === 70);
+    const answers = studentProfile.answers;
+    const qId = version === 'v3' ? 54 : 70;
+    const campusAnswer = answers.find(answer => answer.questionId === qId);
     
     return campusAnswer?.answer || [];
   }
+
   
   /**
    * Calculate campus variety modifier
@@ -666,39 +768,65 @@ class ProgramMatchingService {
   /**
    * Apply prerequisites and ranking logic
    */
-  _applyPrerequisitesAndRanking(studentProfile, scoredPrograms) {
+  _applyPrerequisitesAndRanking(studentProfile, scoredPrograms, version = 'v1') {
     // Sort by degree_score (highest first)
-    const sortedPrograms = scoredPrograms.sort((a, b) => b.degree_score - a.degree_score);
+    const sortedPrograms = scoredPrograms.sort((a, b) => {
+      const scoreDiff = b.degree_score - a.degree_score;
+      if (Math.abs(scoreDiff) > 0.01 || version !== 'v3') {
+        return scoreDiff;
+      }
+
+      // Tie-breaking for V3
+      // a) Higher similarity_score
+      const studentRiasec = this._getStudentRiasec(studentProfile);
+      const getSimilarity = (p) => {
+        const pr = this._getProgramRiasec(p);
+        const dist = Math.sqrt(['r','i','a','s','e','c'].reduce((s, d) => s + Math.pow(studentRiasec[d] - pr[d], 2), 0));
+        return 100 * (1 - dist / 9.798);
+      };
+      const simA = getSimilarity(a);
+      const simB = getSimilarity(b);
+      if (Math.abs(simA - simB) > 0.1) return simB - simA;
+
+      // b) Closer Openness alignment
+      const sOpen = studentProfile?.openness_score ?? 3.0;
+      const getOAlign = (p) => Math.abs(sOpen - (p.scoring_data?.personality?.openness ?? 2.5));
+      const alignA = getOAlign(a);
+      const alignB = getOAlign(b);
+      if (Math.abs(alignA - alignB) > 0.1) return alignA - alignB; // Lower is better
+
+      // c) Alphabetical by university
+      const uniA = (a.university?.name || '').toLowerCase();
+      const uniB = (b.university?.name || '').toLowerCase();
+      if (uniA !== uniB) return uniA < uniB ? -1 : 1;
+
+      // d) Alphabetical by degree name
+      return (a.name || '').toLowerCase() < (b.name || '').toLowerCase() ? -1 : 1;
+    });
     
     // Check essential prerequisites for each program
     const programsWithPrereqs = sortedPrograms.map(program => ({
       ...program,
-      prerequisites: this._checkPrerequisites(studentProfile, program)
+      prerequisites: this._checkPrerequisites(studentProfile, program, version)
     }));
     
     // Apply ranking logic based on prerequisite scenarios
     const accessiblePrograms = programsWithPrereqs.filter(p => p.prerequisites.essential_pass);
     const inaccessiblePrograms = programsWithPrereqs.filter(p => !p.prerequisites.essential_pass);
     
-    if (accessiblePrograms.length >= 3) {
-      // Scenario A: 3+ accessible programs
-      return accessiblePrograms.slice(0, 3);
-    } else if (accessiblePrograms.length > 0) {
-      // Scenario B: 1-2 accessible programs
-      const remaining = 3 - accessiblePrograms.length;
-      return [...accessiblePrograms, ...inaccessiblePrograms.slice(0, remaining)];
-    } else {
-      // Scenario C: 0 accessible programs
-      return inaccessiblePrograms.slice(0, 3);
-    }
+    // V3 wants top 3 shown as primary, but "Show more" up to 9.
+    // We return up to 9 programs.
+    const allRanked = [...accessiblePrograms, ...inaccessiblePrograms];
+    return allRanked;
   }
+
   
   /**
    * Check all prerequisites for a program
    */
-  _checkPrerequisites(studentProfile, program) {
-    const essential = this._checkEssentialPrerequisites(studentProfile, program);
-    const nonEssential = this._checkNonEssentialPrerequisites(studentProfile, program);
+  _checkPrerequisites(studentProfile, program, version = 'v1') {
+    const essential = this._checkEssentialPrerequisites(studentProfile, program, version);
+    const nonEssential = this._checkNonEssentialPrerequisites(studentProfile, program, version);
     
     return {
       essential_pass: essential.budget_met && essential.gpa_met,
@@ -707,43 +835,44 @@ class ProgramMatchingService {
       non_essential_flags: nonEssential
     };
   }
+
   
   /**
    * Check essential prerequisites (budget and GPA)
    */
-  _checkEssentialPrerequisites(studentProfile, program) {
+  _checkEssentialPrerequisites(studentProfile, program, version = 'v1') {
     const scoringData = program.scoring_data || {};
     const prerequisites = scoringData.prerequisites || {};
     
     // Budget check - if no tuition data, assume accessible
     const programTuition = prerequisites.tuition || program.tuition_usd;
-    const studentBudget = this._getStudentBudget(studentProfile);
+    const studentBudget = this._getStudentBudget(studentProfile, version);
     const budget_met = !programTuition || !studentBudget || studentBudget >= programTuition;
     
     // GPA check - if no GPA requirement, assume accessible
     const programMinGpa = prerequisites.min_gpa;
-    const studentGpa = this._getStudentGpa(studentProfile);
+    const studentGpa = this._getStudentGpa(studentProfile, version);
     const gpa_met = !programMinGpa || !studentGpa || studentGpa >= programMinGpa;
     
     return { budget_met, gpa_met };
   }
+
   
   /**
    * Get student budget from quiz (Q75)
    */
-  _getStudentBudget(studentProfile) {
+  _getStudentBudget(studentProfile, version = 'v1') {
     if (!studentProfile.answers) return null;
     
-    const answers = typeof studentProfile.answers === 'string' 
-      ? JSON.parse(studentProfile.answers) 
-      : studentProfile.answers;
-    
-    // Find Q75 answer (budget)
-    const budgetAnswer = answers.find(answer => answer.questionId === 75);
+    const answers = studentProfile.answers;
+    // V3 does not have a dedicated budget question in the core 58? 
+    // Wait, let me check the spec again. Q74-Q89 are "Practical" and skippable.
+    // If we only have 58, we don't have budget.
+    const qId = version === 'v3' ? 75 : 75; // Still 75 if it exists
+    const budgetAnswer = answers.find(answer => answer.questionId === qId);
     
     if (!budgetAnswer?.answer) return null;
     
-    // Convert budget range to upper bound value (as per specification)
     const budgetMap = {
       'under_5000': 5000,
       '5000_10000': 10000,
@@ -755,23 +884,20 @@ class ProgramMatchingService {
     
     return budgetMap[budgetAnswer.answer] || null;
   }
+
   
   /**
    * Get student GPA from quiz (Q83)
    */
-  _getStudentGpa(studentProfile) {
+  _getStudentGpa(studentProfile, version = 'v1') {
     if (!studentProfile.answers) return null;
     
-    const answers = typeof studentProfile.answers === 'string' 
-      ? JSON.parse(studentProfile.answers) 
-      : studentProfile.answers;
-    
-    // Find Q83 answer (GPA)
-    const gpaAnswer = answers.find(answer => answer.questionId === 83);
+    const answers = studentProfile.answers;
+    const qId = version === 'v3' ? 83 : 83; // Still 83 if it exists
+    const gpaAnswer = answers.find(answer => answer.questionId === qId);
     
     if (!gpaAnswer?.answer) return null;
     
-    // Convert GPA range to numeric value (using midpoint of ranges)
     const gpaMap = {
       'below_2_5': 2.25,
       '2_5_2_9': 2.7,
@@ -784,6 +910,7 @@ class ProgramMatchingService {
     
     return gpaMap[gpaAnswer.answer] || null;
   }
+
   
   /**
    * Check non-essential prerequisites
@@ -796,8 +923,9 @@ class ProgramMatchingService {
   /**
    * Generate final program output with prerequisite verdict
    */
-  _generateProgramOutput(studentProfile, program) {
+  _generateProgramOutput(studentProfile, program, version = 'v1') {
     const prerequisiteVerdict = this._generatePrerequisiteVerdict(program.prerequisites);
+
     
     return {
       program_id: program.id,

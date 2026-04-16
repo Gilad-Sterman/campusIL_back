@@ -23,6 +23,7 @@ class QuizService {
   _buildResultsPayload({ sessionId, completedAt, totalAnswers, avgScore, insights, source, scoringBundle, programMatches }) {
     return {
       contractVersion: QUIZ_SCORING_CONTRACT_VERSION,
+      version: scoringBundle?.version || 'v1',
       sessionId,
       completedAt,
       totalAnswers,
@@ -44,6 +45,7 @@ class QuizService {
       scoring: scoringBundle?.scoring || null,
       programMatches: programMatches || null
     };
+
   }
 
   async _buildComputedResults(answerEntries, { sessionId, completedAt, source }) {
@@ -65,9 +67,11 @@ class QuizService {
       const { default: programMatchingService } = await import('./programMatchingService.js');
       
       const studentProfile = {
-        riasec_scores: scoringBundle.scoring.riasec_scores,
-        personality_scores: scoringBundle.scoring.personality_scores,
-        section_weights: scoringBundle.scoring.section_weights,
+        riasec_scores: scoringBundle.scoring.riasec,
+        personality_scores: scoringBundle.scoring.personality,
+        section_weights: scoringBundle.scoring.sections,
+        v3_weights: scoringBundle.scoring.v3?.weights,
+        openness_score: scoringBundle.scoring.v3?.student_openness,
         brilliance_summary: brillianceInsights.summary,
         answers: normalizedAnswers
       };
@@ -373,6 +377,8 @@ class QuizService {
         quizId: completedQuiz.id,
         hasResults: true,
         answers: completedQuiz.answers,
+        version: results.version || 'v1',
+        v3: results.scoring?.v3 || null,
         // Include all enhanced scoring data from database
         section_weights: completedQuiz.section_weights,
         riasec_scores: completedQuiz.riasec_scores,
@@ -382,6 +388,7 @@ class QuizService {
         cost_analysis: completedQuiz.cost_analysis,
         results
       };
+
     }
 
     // Check for in-progress quiz
