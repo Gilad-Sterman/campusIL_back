@@ -270,15 +270,18 @@ const V2_QUESTIONS = TEST_12_QUESTIONS;
 
 // Import full questions directly now that circular dependency is resolved
 import { FULL_QUIZ_QUESTIONS } from './fullQuizQuestions.js';
+import { V3_QUIZ_QUESTIONS } from './v3QuizQuestions.js';
 
 export const QUIZ_QUESTION_SETS = {
   test12: TEST_12_QUESTIONS,
   v2: V2_QUESTIONS,
+  v3: V3_QUIZ_QUESTIONS,
   full: FULL_QUIZ_QUESTIONS
 };
 
-const requestedQuizVersion = String(process.env.QUIZ_VERSION || 'full').toLowerCase();
-export const ACTIVE_QUIZ_VERSION = QUIZ_QUESTION_SETS[requestedQuizVersion] ? requestedQuizVersion : 'test12';
+const requestedQuizVersion = String(process.env.QUIZ_VERSION || 'v3').toLowerCase();
+export const ACTIVE_QUIZ_VERSION = QUIZ_QUESTION_SETS[requestedQuizVersion] ? requestedQuizVersion : 'v3';
+
 
 export const QUIZ_QUESTIONS = QUIZ_QUESTION_SETS[ACTIVE_QUIZ_VERSION];
 
@@ -375,12 +378,16 @@ export const isAnswerValidForQuestion = (question, answer) => {
       return typeof answer === 'string' && answer.trim().length > 0;
 
     case 'likert': {
+      if (answer === null || answer === undefined || answer === '') return false;
       const value = Number(answer);
       return Number.isFinite(value) && value >= question.config.min && value <= question.config.max;
     }
 
+
     case 'dropdown':
+    case 'single_select':
       return typeof answer === 'string' && answer.length > 0;
+
 
     case 'multi_select': {
       if (!Array.isArray(answer)) return false;
