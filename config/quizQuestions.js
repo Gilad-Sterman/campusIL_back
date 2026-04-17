@@ -373,42 +373,70 @@ export const getVisibleProgress = (currentQuestionId, answers = []) => {
 export const isAnswerValidForQuestion = (question, answer) => {
   if (!question) return false;
 
-  switch (question.type) {
-    case 'text_field':
-      return typeof answer === 'string' && answer.trim().length > 0;
+  const logInvalid = (reason) => {
+  };
 
-    case 'likert': {
-      if (answer === null || answer === undefined || answer === '') return false;
-      const value = Number(answer);
-      return Number.isFinite(value) && value >= question.config.min && value <= question.config.max;
+  switch (question.type) {
+    case 'text_field': {
+      const isValid = typeof answer === 'string' && answer.trim().length > 0;
+      if (!isValid) logInvalid('Empty string');
+      return isValid;
     }
 
+    case 'likert': {
+      if (answer === null || answer === undefined || answer === '') {
+        logInvalid('Null or empty');
+        return false;
+      }
+      const value = Number(answer);
+      const isValid = Number.isFinite(value) && value >= question.config.min && value <= question.config.max;
+      if (!isValid) logInvalid(`Out of range [${question.config.min}, ${question.config.max}]`);
+      return isValid;
+    }
 
     case 'dropdown':
-    case 'single_select':
-      return typeof answer === 'string' && answer.length > 0;
-
+    case 'single_select': {
+      const isValid = typeof answer === 'string' && answer.length > 0;
+      if (!isValid) logInvalid('No selection');
+      return isValid;
+    }
 
     case 'multi_select': {
-      if (!Array.isArray(answer)) return false;
+      if (!Array.isArray(answer)) {
+        logInvalid('Not an array');
+        return false;
+      }
       const minSelections = question.config?.minSelections || 1;
       const maxSelections = question.config?.maxSelections || Number.MAX_SAFE_INTEGER;
-      return answer.length >= minSelections && answer.length <= maxSelections;
+      const isValid = answer.length >= minSelections && answer.length <= maxSelections;
+      if (!isValid) logInvalid(`Selected ${answer.length}, required [${minSelections}, ${maxSelections}]`);
+      return isValid;
     }
 
     case 'currency': {
       const value = Number(answer);
-      return Number.isFinite(value) && value >= question.config.minAmount && value <= question.config.maxAmount;
+      const isValid = Number.isFinite(value) && value >= question.config.minAmount && value <= question.config.maxAmount;
+      if (!isValid) logInvalid(`Amount out of range`);
+      return isValid;
     }
 
-    case 'date':
-      return typeof answer === 'string' && answer.length > 0;
+    case 'date': {
+      const isValid = typeof answer === 'string' && answer.length > 0;
+      if (!isValid) logInvalid('Empty date');
+      return isValid;
+    }
 
-    case 'two_level_dropdown':
-      return !!answer && typeof answer === 'object' && !!answer.level1 && !!answer.level2;
+    case 'two_level_dropdown': {
+      const isValid = !!answer && typeof answer === 'object' && !!answer.level1 && !!answer.level2;
+      if (!isValid) logInvalid('Level 1 or Level 2 missing');
+      return isValid;
+    }
 
     case 'nested_rating': {
-      if (!answer || typeof answer !== 'object') return false;
+      if (!answer || typeof answer !== 'object') {
+        logInvalid('Not an object');
+        return false;
+      }
       const itemIds = (question.config?.items || []).map((item) => item.id);
       if (itemIds.length === 0) return false;
 
@@ -419,16 +447,20 @@ export const isAnswerValidForQuestion = (question, answer) => {
     }
 
     case 'constraint_slider': {
-      if (!answer || typeof answer !== 'object') return false;
+      if (!answer || typeof answer !== 'object') {
+        logInvalid('Not an object');
+        return false;
+      }
       const categories = question.config?.categories || [];
       const total = categories.reduce((sum, category) => {
         return sum + Number(answer[category.key] || 0);
       }, 0);
-      return total === question.config.targetTotal;
+      const isValid = total === question.config.targetTotal;
+      if (!isValid) logInvalid(`Total ${total} != expected ${question.config.targetTotal}`);
+      return isValid;
     }
 
     case 'statement':
-      // Statements are valid by default (just informational)
       return true;
 
     default:
@@ -444,7 +476,25 @@ export const isQuizCompleteForAnswers = (answers = []) => {
     (question) => visibleIds.includes(question.id) && question.required
   );
 
-  return requiredVisibleQuestions.every((question) => {
-    return isAnswerValidForQuestion(question, answerMap[question.id]);
+  const missingIds = [];
+  const invalidIds = [];
+
+  const isComplete = requiredVisibleQuestions.every((question) => {
+    const answer = answerMap[question.id];
+    const isValid = isAnswerValidForQuestion(question, answer);
+    
+    if (answer === undefined || answer === null) {
+      missingIds.push(question.id);
+    } else if (!isValid) {
+      invalidIds.push(question.id);
+    }
+    
+    return isValid;
   });
+
+  if (!isComplete) {
+  } else {
+  }
+
+  return isComplete;
 };

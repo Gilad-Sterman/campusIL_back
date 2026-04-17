@@ -289,10 +289,33 @@ class QuizService {
   }
 
   /**
+   * Helper to prepare the final quiz payload for database storage
+   * @private
+   */
+  _prepareCompletedQuizData(userId, session) {
+    const scoringBundle = quizScoringService.calculateScoring(session.answers);
+    const brillianceInsights = quizScoringService.generateBrillianceSummary(scoringBundle.scoring);
+
+    return {
+      user_id: userId,
+      answers: session.answers,
+      total_questions: session.totalQuestions || getTotalQuestions(),
+      question_path: session.questionPath || [],
+      section_weights: {
+        ...(scoringBundle?.scoring?.sections || {}),
+        v3: scoringBundle?.scoring?.v3 || null
+      },
+      riasec_scores: scoringBundle?.scoring?.riasec || null,
+      personality_scores: scoringBundle?.scoring?.personality || null,
+      brilliance_summary: brillianceInsights?.summary || null,
+      program_matches: null, 
+      cost_analysis: null,   
+      completed_at: session.lastAnsweredAt || new Date().toISOString()
+    };
+  }
+
+  /**
    * Transfer anonymous quiz to user account (on signup)
-   * @param {string} sessionId - Anonymous session ID
-   * @param {string} userId - New user ID from auth
-   * @param {Object} userData - User profile data
    */
   async transferAnonymousQuiz(sessionId, userId, userData) {
     const session = await this.storage.getQuizSession(sessionId);
@@ -300,24 +323,7 @@ class QuizService {
       throw new Error('Quiz session not found or not completed');
     }
 
-    // Calculate enhanced scoring for database storage
-    const scoringBundle = quizScoringService.calculateScoring(session.answers);
-    const brillianceInsights = quizScoringService.generateBrillianceSummary(scoringBundle.scoring);
-
-    // Prepare quiz data for database
-    const quizData = {
-      user_id: userId,
-      answers: session.answers,
-      total_questions: session.totalQuestions || getTotalQuestions(),
-      question_path: session.questionPath || [],
-      section_weights: scoringBundle?.scoring?.sections || null,
-      riasec_scores: scoringBundle?.scoring?.riasec || null,
-      personality_scores: scoringBundle?.scoring?.personality || null,
-      brilliance_summary: brillianceInsights?.summary || null,
-      program_matches: null, // Will be populated when program matching is implemented
-      cost_analysis: null,   // Will be populated when cost analysis is implemented
-      completed_at: session.lastAnsweredAt
-    };
+    const quizData = this._prepareCompletedQuizData(userId, session);
 
     // Save to database
     const { data, error } = await supabase
@@ -489,19 +495,12 @@ class QuizService {
       const scoringBundle = quizScoringService.calculateScoring(answers);
       const brillianceInsights = quizScoringService.generateBrillianceSummary(scoringBundle.scoring);
 
-      const completionPayload = {
-        user_id: userId,
+      const completionPayload = this._prepareCompletedQuizData(userId, {
         answers,
-        total_questions: existingProgress?.total_questions || visibleQuestionIds.length || answers.length,
-        question_path: existingProgress?.question_path || visibleQuestionIds,
-        section_weights: scoringBundle?.scoring?.sections || existingProgress?.section_weights || null,
-        riasec_scores: scoringBundle?.scoring?.riasec || null,
-        personality_scores: scoringBundle?.scoring?.personality || null,
-        brilliance_summary: brillianceInsights?.summary || null,
-        program_matches: null, // Will be populated when program matching is implemented
-        cost_analysis: null,   // Will be populated when cost analysis is implemented
-        completed_at: new Date().toISOString()
-      };
+        lastAnsweredAt: new Date().toISOString(),
+        totalQuestions: existingProgress?.total_questions || visibleQuestionIds.length || answers.length,
+        questionPath: existingProgress?.question_path || visibleQuestionIds
+      });
 
       // Save to quiz_answers
       const { data: completedQuiz, error: saveError } = await supabase
@@ -581,23 +580,7 @@ class QuizService {
     // Handle different scenarios
     if (session.status === 'completed') {
       // Anonymous quiz is completed - save to quiz_answers
-      // Calculate enhanced scoring for database storage
-      const scoringBundle = quizScoringService.calculateScoring(session.answers);
-      const brillianceInsights = quizScoringService.generateBrillianceSummary(scoringBundle.scoring);
-
-      const completedQuizData = {
-        user_id: userId,
-        answers: session.answers,
-        total_questions: session.totalQuestions || getTotalQuestions(),
-        question_path: session.questionPath || [],
-        section_weights: scoringBundle?.scoring?.sections || null,
-        riasec_scores: scoringBundle?.scoring?.riasec || null,
-        personality_scores: scoringBundle?.scoring?.personality || null,
-        brilliance_summary: brillianceInsights?.summary || null,
-        program_matches: null, // Will be populated when program matching is implemented
-        cost_analysis: null,   // Will be populated when cost analysis is implemented
-        completed_at: session.lastAnsweredAt || new Date().toISOString()
-      };
+      const completedQuizData = this._prepareCompletedQuizData(userId, session);
 
       const { data, error } = await supabase
         .from('quiz_answers')

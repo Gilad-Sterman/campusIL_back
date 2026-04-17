@@ -56,15 +56,15 @@ class QuizScoringService {
    * Detect quiz version based on payload metadata or question signature
    */
   _detectVersion(answerEntries) {
-    // Check for explicit version tag in metadata (if injected as an item)
+    // Check for explicit version tag in metadata
     const versionTag = answerEntries.find(a => a.version);
     if (versionTag) return versionTag.version;
 
-    // Heuristic: V3 has exactly 58 or fewer questions and uses specific IDs
-    // But metadata is more reliable. We'll default to V1 if not sure.
-    const hasV3Id = answerEntries.some(a => a.questionId > 67); // Some high IDs in V1
-    if (answerEntries.length <= 60 && !hasV3Id) {
-      // Small payloads are likely V3 or mini-quizzes
+    // Check for V3-specific key footprint (guaranteed by updated frontend)
+    const v3Keys = ['MEET_NAME', 'EXPLORE_WORK', 'EXPLORE_PERSONALITY', 'RIASEC_R_01'];
+    const hasV3Keys = answerEntries.some(a => v3Keys.includes(a.key));
+    
+    if (hasV3Keys) {
       return 'v3';
     }
     
@@ -92,13 +92,13 @@ class QuizScoringService {
     // 2. Openness Mapping (1 + raw_mean * 2)
     const opennessQIds = v3Config.openness;
     const opennessValues = opennessQIds.map(id => answerMap[id]).filter(v => v !== undefined && v !== null);
-    const opennessRawMean = opennessValues.length > 0 ? (opennessValues.reduce((s, v) => s + v, 0) / opennessValues.length) : 1; // Default to neutral 1
+    const opennessRawMean = opennessValues.length > 0 ? (opennessValues.reduce((s, v) => s + v, 0) / opennessValues.length) : 1;
     const studentOpenness = Number((1 + (opennessRawMean * 2)).toFixed(2));
 
     // 3. Response Validity Checks
     const validity = this._runV3ValidityChecks(riasecItems, opennessValues);
 
-    // 4. Weight Allocation (Q55)
+    // 4. Weight Allocation (Q65)
     const priority = answerMap[v3Config.priority];
     const weightConfig = QUIZ_SCORING_CONFIG.sectionWeights.v3;
     const shift = weightConfig.shifts[priority] || { academic: 0, environment: 0 };
@@ -110,6 +110,13 @@ class QuizScoringService {
     // 5. Structure final output
     scoring.riasec = riasecScores;
     scoring.personality.openness = { score: studentOpenness, tag: studentOpenness >= 4 ? 'High' : (studentOpenness <= 2 ? 'Low' : 'Average') };
+    
+    // Add sections to scoring for consistent DB storage
+    scoring.sections = {
+      academic: { weight: weights.academic },
+      environment: { weight: weights.environment }
+    };
+
     scoring.v3 = {
       student_openness: studentOpenness,
       student_priority: priority,

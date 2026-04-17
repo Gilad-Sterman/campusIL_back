@@ -43,9 +43,13 @@ class ProgramMatchingService {
       const rankedPrograms = this._applyPrerequisitesAndRanking(studentProfile, processedPrograms, version);
       
       // Step 7: Generate final output
-      const finalResults = rankedPrograms.slice(0, 9).map(program => 
+      const finalResults = rankedPrograms.map(program => 
         this._generateProgramOutput(studentProfile, program, version)
       );
+
+      if (finalResults.length > 0) {
+      } else {
+      }
       
       return {
         success: true,
@@ -55,7 +59,6 @@ class ProgramMatchingService {
       };
       
     } catch (error) {
-      console.error('Program matching error:', error);
       return {
         success: false,
         error: 'Failed to match programs',
@@ -71,10 +74,14 @@ class ProgramMatchingService {
     const versionTag = answers.find(a => a.version);
     if (versionTag) return versionTag.version;
 
-    // Check for V3-specific question footprint
-    // Q2 (degree level) is mandatory in V3 but not present in V1
-    const hasV3Indicator = answers.some(a => a.questionId === 13 || a.questionId === 56);
-    return hasV3Indicator ? 'v3' : 'v1';
+    // Check for V3-specific key footprint
+    const v3Keys = ['MEET_NAME', 'EXPLORE_WORK', 'RIASEC_R_01'];
+    const hasV3Keys = answers.some(a => v3Keys.includes(a.key));
+    
+    // Fallback ID check (New IDs for Openness begin at 16, Priority at 64)
+    const hasV3Id = answers.some(a => a.questionId === 16 || a.questionId === 64);
+    
+    return (hasV3Keys || hasV3Id) ? 'v3' : 'v1';
   }
 
 
@@ -199,18 +206,26 @@ class ProgramMatchingService {
       return programs; // No filtering if no preference
     }
     
-    // V3 uses single select LEVEL_BACHELOR / LEVEL_MASTERS
+    // V3 uses single select BA/BSc / MA/MSc/MBA
     const targetLevels = Array.isArray(degreeTypes) ? degreeTypes : [degreeTypes];
     
-    // Map V3 keys to program properties if needed
-    const levelMap = {
-      'LEVEL_BACHELOR': 'BA/BSc',
-      'LEVEL_MASTERS': 'MA/MSc/MBA'
+    // Aliases for robust matching
+    const levelAliases = {
+      'BA/BSc': ['BA/BSc', 'bachelor', 'ba', 'bsc', 'LEVEL_BACHELOR'],
+      'MA/MSc/MBA': ['MA/MSc/MBA', 'master', 'ma', 'msc', 'mba', 'LEVEL_MASTERS']
     };
 
     return programs.filter(program => {
-      const pLevel = program.degree_level;
-      return targetLevels.some(t => t === pLevel || levelMap[t] === pLevel);
+      const pLevel = (program.degree_level || '').toLowerCase().trim();
+      
+      return targetLevels.some(t => {
+        const primary = t.toLowerCase();
+        // Direct match
+        if (primary === pLevel) return true;
+        // Alias match
+        const aliases = levelAliases[t] || [];
+        return aliases.some(a => a.toLowerCase() === pLevel);
+      });
     });
   }
 
@@ -678,7 +693,7 @@ class ProgramMatchingService {
     if (!studentProfile.answers) return [];
     
     const answers = studentProfile.answers;
-    const qId = version === 'v3' ? 54 : 70;
+    const qId = version === 'v3' ? 63 : 70;
     const campusAnswer = answers.find(answer => answer.questionId === qId);
     
     return campusAnswer?.answer || [];
