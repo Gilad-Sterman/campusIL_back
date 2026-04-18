@@ -178,7 +178,8 @@ The application uses Supabase PostgreSQL with Row Level Security (RLS) policies.
 - **programs**: Academic program details
 - **quiz_questions**: Quiz system questions
 - **quiz_results**: User quiz responses and results
-- **applications**: User applications to programs
+- **applications**: Legacy multi-step applications to programs
+- **user_applications**: MVP “Add to My Applications” (saved / applied; see `src/DB/DBSetup.sql` and `migration_phase1_user_applications_mvp.sql`)
 - **documents**: File uploads and document management
 
 ## 🔒 Security Features

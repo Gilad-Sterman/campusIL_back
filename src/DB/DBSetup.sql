@@ -157,6 +157,26 @@ CREATE TABLE applications (
     UNIQUE(user_id, program_id)
 );
 
+-- 7a. User applications (MVP) — "Add to My Applications" / external apply tracking.
+--     Distinct from legacy `applications` above (multi-step flow). New API targets this table.
+CREATE TABLE user_applications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    program_id UUID NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+    university_id UUID NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'saved' CHECK (status IN ('saved', 'applied')),
+    external_link TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT user_applications_user_program_unique UNIQUE (user_id, program_id)
+);
+
+CREATE INDEX idx_user_applications_user_id ON user_applications(user_id);
+CREATE INDEX idx_user_applications_program_id ON user_applications(program_id);
+
+COMMENT ON TABLE user_applications IS 'MVP: Add to My Applications — saved vs applied; external apply tracking.';
+COMMENT ON COLUMN user_applications.external_link IS 'Optional override URL; otherwise use programs.application_url in app.';
+
 -- 8. Documents table (Global document library - users upload once, reuse across applications)
 CREATE TABLE documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -506,6 +526,17 @@ CREATE POLICY "Users can manage own applications" ON applications
 CREATE POLICY "Admins can view all applications" ON applications 
   FOR SELECT USING (is_admin(auth.uid()));
 CREATE POLICY "Concierge can view applications" ON applications 
+  FOR SELECT USING (is_concierge_or_admin(auth.uid()));
+
+-- User applications (MVP) RLS
+ALTER TABLE user_applications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own user_applications" ON user_applications 
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage own user_applications" ON user_applications 
+  FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Admins can view all user_applications" ON user_applications 
+  FOR SELECT USING (is_admin(auth.uid()));
+CREATE POLICY "Concierge can view user_applications" ON user_applications 
   FOR SELECT USING (is_concierge_or_admin(auth.uid()));
 
 -- Documents RLS

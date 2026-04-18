@@ -10,6 +10,7 @@ This document provides a comprehensive explanation of all database tables, field
 users (1) ←→ (1) quiz_answers
 users (1) ←→ (*) saved_programs
 users (1) ←→ (*) applications
+users (1) ←→ (*) user_applications
 users (1) ←→ (*) documents
 users (1) ←→ (*) appointments
 users (1) ←→ (*) user_roles
@@ -17,6 +18,9 @@ users (1) ←→ (*) user_roles
 universities (1) ←→ (*) programs
 programs (1) ←→ (*) saved_programs
 programs (1) ←→ (*) applications
+programs (1) ←→ (*) user_applications
+
+universities (1) ←→ (*) user_applications
 
 applications (1) ←→ (*) documents
 ```
@@ -401,6 +405,25 @@ draft → info_filled → docs_uploaded → redirected → confirmed_applied
 - UNIQUE constraint on (user_id, program_id) prevents duplicate applications
 - Status tracking enables funnel analysis and automation
 - Timestamps track user journey through application process
+
+### 6a. user_applications (MVP)
+**Purpose**: Stores “Add to My Applications” bookmarks and external apply tracking. Simpler than legacy `applications` (section 6): only `saved` vs `applied`, no multi-step flow or document pipeline.
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Row identifier |
+| `user_id` | UUID | NOT NULL, REFERENCES users(id) ON DELETE CASCADE | Owner |
+| `program_id` | UUID | NOT NULL, REFERENCES programs(id) ON DELETE CASCADE | Program |
+| `university_id` | UUID | NOT NULL, REFERENCES universities(id) ON DELETE CASCADE | University (denormalized for list/display) |
+| `status` | TEXT | NOT NULL, DEFAULT 'saved', CHECK | `saved` or `applied` |
+| `external_link` | TEXT | NULL | Optional URL override; else use `programs.application_url` in app |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Created |
+| `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Updated |
+
+**Key Points**:
+- UNIQUE `(user_id, program_id)` prevents duplicate adds
+- RLS: users manage own rows; admins/concierge read per policies in DBSetup
+- Legacy `applications` table remains for existing flows until deprecated in code
 
 ### 7. documents
 **Purpose**: Manages uploaded application documents with security and virus scanning.

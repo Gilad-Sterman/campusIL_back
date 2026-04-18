@@ -3,6 +3,8 @@
 -- without these columns. Safe to re-run (IF NOT EXISTS).
 --
 -- New greenfield installs: columns are already included in DBSetup.sql CREATE TABLE users.
+--
+-- Full Phase 1 (users + user_applications + RLS): see migration_phase1_user_applications_mvp.sql
 
 ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS date_of_birth DATE,
