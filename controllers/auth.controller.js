@@ -15,7 +15,16 @@ export const register = async (req, res) => {
       });
     }
 
-    const { email, password, firstName, lastName, phone, country } = req.body;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      phone,
+      country,
+      dateOfBirth,
+      zipCode
+    } = req.body;
 
     // Check if user already exists and has taken the quiz
     const { data: existingUser, error: checkError } = await supabase
@@ -64,7 +73,9 @@ export const register = async (req, res) => {
         first_name: firstName,
         last_name: lastName,
         phone: phone || null,
-        country: country || null
+        country: country || null,
+        date_of_birth: dateOfBirth,
+        zip_code: zipCode && String(zipCode).trim() ? String(zipCode).trim() : null
       })
       .select()
       .single();
@@ -97,6 +108,8 @@ export const register = async (req, res) => {
       lastName: userProfile.last_name,
       phone: userProfile.phone,
       country: userProfile.country,
+      dateOfBirth: userProfile.date_of_birth,
+      zipCode: userProfile.zip_code,
       role: userProfile.role,
       createdAt: userProfile.created_at
     };
