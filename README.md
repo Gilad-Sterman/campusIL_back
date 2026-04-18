@@ -132,11 +132,20 @@ npm run dev
 - `GET /api/quiz/results/:userId` - Get user quiz results
 
 ### Applications & Documents
-- `GET /api/applications` - Get user applications
+- `GET /api/applications` - Get user applications (legacy multi-step flow)
 - `POST /api/applications` - Create new application
 - `PUT /api/applications/:id` - Update application
 - `POST /api/documents/upload` - Upload documents
 - `GET /api/documents/:id` - Get document
+
+### MVP — My Applications (`user_applications`)
+Requires authentication (`Authorization: Bearer <token>`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/user-applications` | List current user’s saved/applied programs (with program and university joins) |
+| `POST` | `/api/user-applications` | Add a program; body: `{ "program_id", "university_id" }` (must match the program’s university). Duplicate returns **409**. |
+| `PATCH` | `/api/user-applications/:id` | Update `status` (`saved` \| `applied`) and/or `external_link` |
 
 ### Admin Panel
 - `GET /api/admin/dashboard` - Admin dashboard data
