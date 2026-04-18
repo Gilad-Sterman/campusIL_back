@@ -944,6 +944,7 @@ class ProgramMatchingService {
     
     return {
       program_id: program.id,
+      university_id: program.university_id || program.university?.id || null,
       university_name: program.university?.name || 'Unknown University',
       university_city: program.university?.city || 'Unknown City',
       program_name: program.name,
