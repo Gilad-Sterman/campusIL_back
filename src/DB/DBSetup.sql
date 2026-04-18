@@ -6,6 +6,7 @@
 -- =============================================================================
 
 -- 1. Users table (extends Supabase auth.users)
+--    Existing DBs from older scripts: run migration_users_add_dob_zip.sql
 CREATE TABLE users (
     id UUID PRIMARY KEY REFERENCES auth.users(id),
     email TEXT NOT NULL UNIQUE,
@@ -13,6 +14,8 @@ CREATE TABLE users (
     last_name TEXT,
     phone TEXT,
     country TEXT,
+    date_of_birth DATE,
+    zip_code TEXT,
     role TEXT NOT NULL DEFAULT 'student',
     status TEXT NOT NULL DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

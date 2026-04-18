@@ -34,7 +34,10 @@ applications (1) ←→ (*) documents
 | `last_name` | TEXT | NULL | User's last name |
 | `phone` | TEXT | NULL | User's phone number |
 | `country` | TEXT | NULL | User's country of origin |
+| `date_of_birth` | DATE | NULL | Date of birth; required for new signups (enforced in API), optional for legacy rows |
+| `zip_code` | TEXT | NULL | Postal / ZIP code (optional) |
 | `role` | TEXT | NOT NULL, DEFAULT 'student' | User role (student, concierge, admin) |
+| `status` | TEXT | NOT NULL, DEFAULT 'active' | Account status (e.g. active) |
 | `created_at` | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | Account creation timestamp |
 | `updated_at` | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | Last profile update timestamp |
 
@@ -42,6 +45,7 @@ applications (1) ←→ (*) documents
 - Links to Supabase's auth system via foreign key
 - Stores additional profile data not in auth.users
 - Email uniqueness enforced at database level
+- `date_of_birth` and `zip_code` support MVP signup (see `migration_users_add_dob_zip.sql` if your `users` table predates these columns)
 
 ### 2. quiz_answers
 **Purpose**: Stores completed quiz responses and LLM-generated analysis. Enforces one quiz per user.
