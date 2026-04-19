@@ -4,6 +4,7 @@ class AdminController {
     // =============================================
     // DASHBOARD
     // =============================================
+    /** Dashboard: quiz funnel, user signups (date range), and My Applications (`user_applications`) aggregates only. */
     async getDashboardStats(req, res) {
         try {
             const { startDate, endDate } = req.query;

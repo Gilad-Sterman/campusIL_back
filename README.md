@@ -166,7 +166,7 @@ Requires authentication (`Authorization: Bearer <token>`).
 | `PATCH` | `/api/user-applications/:id` | Update `status` (`saved` \| `applied`) and/or `external_link` |
 
 ### Admin Panel
-- `GET /api/admin/dashboard` - Admin dashboard data
+- `GET /api/admin/dashboard` - Admin dashboard data (query: `startDate`, `endDate` ISO strings). Response: quiz stats, `totalUsers`, My Applications counts and top lists from `user_applications` (`myApplicationsTotal`, `myApplicationsSaved`, `myApplicationsApplied`, `top5MyApplicationUniversities`, `top5MyApplicationPrograms`).
 - `GET /api/admin/users` - Manage users
 - `POST /api/admin/staff/invite` - Invite staff members
 - `GET /api/admin/universities` - Manage universities
