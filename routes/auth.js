@@ -102,7 +102,35 @@ const profileUpdateValidation = [
     .optional()
     .trim()
     .isLength({ min: 2 })
-    .withMessage('Country must be at least 2 characters')
+    .withMessage('Country must be at least 2 characters'),
+  body('zipCode')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ max: 32 })
+    .withMessage('Zip or postal code is too long'),
+  body('dateOfBirth')
+    .optional({ values: 'falsy' })
+    .isISO8601()
+    .withMessage('Please provide a valid date of birth')
+    .custom((value) => {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) {
+        throw new Error('Invalid date of birth');
+      }
+      const now = new Date();
+      if (d > now) {
+        throw new Error('Date of birth cannot be in the future');
+      }
+      let age = now.getFullYear() - d.getFullYear();
+      const monthDiff = now.getMonth() - d.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < d.getDate())) {
+        age -= 1;
+      }
+      if (age < 13) {
+        throw new Error('You must be at least 13 years old');
+      }
+      return true;
+    })
 ];
 
 // Validation rules for forgot password

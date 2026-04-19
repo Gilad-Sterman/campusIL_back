@@ -1,6 +1,46 @@
-import { createClient } from '@supabase/supabase-js';
 import { supabase, supabaseAdmin } from '../config/db.js';
 import { validationResult } from 'express-validator';
+
+/** Map DB `users` row (or merged `req.user` profile fields) to API user shape */
+const publicUserFromRow = (row) => {
+  if (!row) return null;
+  const out = {
+    id: row.id,
+    email: row.email,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    phone: row.phone,
+    country: row.country,
+    dateOfBirth: row.date_of_birth ?? null,
+    zipCode: row.zip_code ?? null,
+    role: row.role,
+    createdAt: row.created_at
+  };
+  if (row.updated_at !== undefined && row.updated_at !== null) {
+    out.updatedAt = row.updated_at;
+  }
+  return out;
+};
+
+function validateDateOfBirthValue(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    return 'Invalid date of birth';
+  }
+  const now = new Date();
+  if (d > now) {
+    return 'Date of birth cannot be in the future';
+  }
+  let age = now.getFullYear() - d.getFullYear();
+  const monthDiff = now.getMonth() - d.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < d.getDate())) {
+    age -= 1;
+  }
+  if (age < 13) {
+    return 'You must be at least 13 years old';
+  }
+  return null;
+}
 
 // Register new user
 export const register = async (req, res) => {
@@ -100,19 +140,7 @@ export const register = async (req, res) => {
       console.error('Session creation error:', sessionError);
     }
 
-    // Return user data without sensitive information
-    const userData = {
-      id: userProfile.id,
-      email: userProfile.email,
-      firstName: userProfile.first_name,
-      lastName: userProfile.last_name,
-      phone: userProfile.phone,
-      country: userProfile.country,
-      dateOfBirth: userProfile.date_of_birth,
-      zipCode: userProfile.zip_code,
-      role: userProfile.role,
-      createdAt: userProfile.created_at
-    };
+    const userData = publicUserFromRow(userProfile);
 
     res.status(201).json({
       success: true,
@@ -174,18 +202,7 @@ export const login = async (req, res) => {
       });
     }
 
-    // Return user data
-    // Return user data
-    const userData = {
-      id: userProfile.id,
-      email: userProfile.email,
-      firstName: userProfile.first_name,
-      lastName: userProfile.last_name,
-      phone: userProfile.phone,
-      country: userProfile.country,
-      role: userProfile.role,
-      createdAt: userProfile.created_at
-    };
+    const userData = publicUserFromRow(userProfile);
 
     res.json({
       success: true,
@@ -242,18 +259,7 @@ export const getProfile = async (req, res) => {
       });
     }
 
-    // Return user data
-    // Return user data
-    const userData = {
-      id: user.id,
-      email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      phone: user.phone,
-      country: user.country,
-      role: user.role,
-      createdAt: user.created_at
-    };
+    const userData = publicUserFromRow(user);
 
     res.json({
       success: true,
@@ -310,18 +316,43 @@ export const updateProfile = async (req, res) => {
     }
 
     const userId = req.user.id;
-    const { firstName, lastName, phone, country } = req.body;
+    const { firstName, lastName, phone, country, zipCode, dateOfBirth } = req.body;
 
-    // Update user profile
+    const existingDob = req.user.date_of_birth;
+
+    const updatePayload = {
+      first_name: firstName,
+      last_name: lastName,
+      phone: phone || null,
+      country: country || null,
+      updated_at: new Date().toISOString()
+    };
+
+    if (zipCode !== undefined) {
+      const trimmed = zipCode != null ? String(zipCode).trim() : '';
+      updatePayload.zip_code = trimmed ? trimmed : null;
+    }
+
+    if (dateOfBirth !== undefined && dateOfBirth !== null && String(dateOfBirth).trim() !== '') {
+      if (existingDob) {
+        return res.status(400).json({
+          success: false,
+          error: 'Date of birth cannot be changed'
+        });
+      }
+      const dobError = validateDateOfBirthValue(dateOfBirth);
+      if (dobError) {
+        return res.status(400).json({
+          success: false,
+          error: dobError
+        });
+      }
+      updatePayload.date_of_birth = dateOfBirth;
+    }
+
     const { data: updatedProfile, error: updateError } = await supabase
       .from('users')
-      .update({
-        first_name: firstName,
-        last_name: lastName,
-        phone: phone || null,
-        country: country || null,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', userId)
       .select()
       .single();
@@ -334,17 +365,7 @@ export const updateProfile = async (req, res) => {
       });
     }
 
-    // Return updated user data
-    const userData = {
-      id: updatedProfile.id,
-      email: updatedProfile.email,
-      firstName: updatedProfile.first_name,
-      lastName: updatedProfile.last_name,
-      phone: updatedProfile.phone,
-      country: updatedProfile.country,
-      createdAt: updatedProfile.created_at,
-      updatedAt: updatedProfile.updated_at
-    };
+    const userData = publicUserFromRow(updatedProfile);
 
     res.json({
       success: true,
