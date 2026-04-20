@@ -34,145 +34,72 @@ class AdminService {
         quizCompletionsQuery = applyDateFilter(quizCompletionsQuery, { column: 'completed_at' });
         const { count: quizCompletions } = await quizCompletionsQuery;
 
-        // Get application stats
-        let applicationsQuery = supabaseAdmin
-            .from('applications')
+        // MVP — user_applications ("Add to My Applications"; not legacy `applications`)
+        let myAppTotalQuery = supabaseAdmin
+            .from('user_applications')
             .select('*', { count: 'exact', head: true });
-        applicationsQuery = applyDateFilter(applicationsQuery);
-        const { count: totalApplications } = await applicationsQuery;
+        myAppTotalQuery = applyDateFilter(myAppTotalQuery);
+        const { count: myApplicationsTotal } = await myAppTotalQuery;
 
-        // Get user count
+        let myAppSavedQuery = supabaseAdmin
+            .from('user_applications')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'saved');
+        myAppSavedQuery = applyDateFilter(myAppSavedQuery);
+        const { count: myApplicationsSaved } = await myAppSavedQuery;
+
+        let myAppAppliedQuery = supabaseAdmin
+            .from('user_applications')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'applied');
+        myAppAppliedQuery = applyDateFilter(myAppAppliedQuery);
+        const { count: myApplicationsApplied } = await myAppAppliedQuery;
+
+        let myAppProgramsQuery = supabaseAdmin
+            .from('user_applications')
+            .select(`
+                program_id,
+                programs!inner(name, universities!inner(name))
+            `);
+        myAppProgramsQuery = applyDateFilter(myAppProgramsQuery);
+        const { data: myAppProgramRows } = await myAppProgramsQuery;
+
+        const myAppProgramCounts = {};
+        myAppProgramRows?.forEach(row => {
+            const programName = row.programs?.name || 'Unknown Program';
+            const universityName = row.programs?.universities?.name || 'Unknown University';
+            const key = `${programName} - ${universityName}`;
+            myAppProgramCounts[key] = (myAppProgramCounts[key] || 0) + 1;
+        });
+        const top5MyApplicationPrograms = Object.entries(myAppProgramCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([name, count]) => ({ name, count }));
+
+        let myAppUniQuery = supabaseAdmin
+            .from('user_applications')
+            .select(`
+                university_id,
+                universities!inner(name)
+            `);
+        myAppUniQuery = applyDateFilter(myAppUniQuery);
+        const { data: myAppUniRows } = await myAppUniQuery;
+
+        const myAppUniCounts = {};
+        myAppUniRows?.forEach(row => {
+            const name = row.universities?.name || 'Unknown University';
+            myAppUniCounts[name] = (myAppUniCounts[name] || 0) + 1;
+        });
+        const top5MyApplicationUniversities = Object.entries(myAppUniCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([name, count]) => ({ name, count }));
+
         let usersQuery = supabaseAdmin
             .from('users')
             .select('*', { count: 'exact', head: true });
         usersQuery = applyDateFilter(usersQuery);
         const { count: totalUsers } = await usersQuery;
-
-        // Get documents stats (metrics usually need distinct users for avg)
-        // Apply date filter to documents to match selected time period
-        let docsQuery = supabaseAdmin
-            .from('documents')
-            .select('user_id');
-        docsQuery = applyDateFilter(docsQuery, { column: 'uploaded_at' });
-        const { data: docsData } = await docsQuery;
-
-        const avgDocsPerUser = docsData && docsData.length > 0
-            ? docsData.length / new Set(docsData.map(d => d.user_id)).size
-            : 0;
-
-        // Average Time: Quiz → Application (median time in hours)
-        let avgTimeQuery = supabaseAdmin
-            .from('applications')
-            .select(`
-                created_at,
-                user_id,
-                quiz_answers!inner(completed_at)
-            `);
-        avgTimeQuery = applyDateFilter(avgTimeQuery);
-        const { data: timeData } = await avgTimeQuery;
-
-        let avgQuizToApplication = 0;
-        if (timeData && timeData.length > 0) {
-            const timeDiffs = timeData
-                .filter(app => app.quiz_answers?.completed_at)
-                .map(app => {
-                    const quizTime = new Date(app.quiz_answers.completed_at);
-                    const appTime = new Date(app.created_at);
-                    return (appTime - quizTime) / (1000 * 60 * 60); // hours
-                })
-                .filter(diff => diff >= 0)
-                .sort((a, b) => a - b);
-
-            if (timeDiffs.length > 0) {
-                const median = timeDiffs.length % 2 === 0
-                    ? (timeDiffs[timeDiffs.length / 2 - 1] + timeDiffs[timeDiffs.length / 2]) / 2
-                    : timeDiffs[Math.floor(timeDiffs.length / 2)];
-                avgQuizToApplication = Math.round(median * 10) / 10; // Round to 1 decimal
-            }
-        }
-
-        // Application Completion Rate (% who completed docs + clicked redirect)
-        let completionQuery = supabaseAdmin
-            .from('applications')
-            .select('status');
-        completionQuery = applyDateFilter(completionQuery);
-        const { data: completionData } = await completionQuery;
-
-        let applicationCompletionRate = 0;
-        if (completionData && completionData.length > 0) {
-            const docsUploaded = completionData.filter(app =>
-                ['docs_uploaded', 'redirected', 'confirmed_applied'].includes(app.status)
-            ).length;
-            const completed = completionData.filter(app =>
-                ['redirected', 'confirmed_applied'].includes(app.status)
-            ).length;
-            applicationCompletionRate = docsUploaded > 0 ?
-                Math.round((completed / docsUploaded) * 100 * 10) / 10 : 0;
-        }
-
-        // Email Confirmation Click Rate (% who confirmed after redirect)
-        let confirmationQuery = supabaseAdmin
-            .from('applications')
-            .select('redirected_at, confirmed_at');
-        confirmationQuery = applyDateFilter(confirmationQuery);
-        const { data: confirmationData } = await confirmationQuery;
-
-        let emailConfirmationRate = 0;
-        if (confirmationData && confirmationData.length > 0) {
-            const redirected = confirmationData.filter(app => app.redirected_at).length;
-            const confirmed = confirmationData.filter(app => app.confirmed_at).length;
-            emailConfirmationRate = redirected > 0 ?
-                Math.round((confirmed / redirected) * 100 * 10) / 10 : 0;
-        }
-
-        // Bounce Rate on Application Redirect (% who redirected but never confirmed)
-        let bounceRate = 0;
-        if (confirmationData && confirmationData.length > 0) {
-            const redirected = confirmationData.filter(app => app.redirected_at).length;
-            const bounced = confirmationData.filter(app =>
-                app.redirected_at && !app.confirmed_at
-            ).length;
-            bounceRate = redirected > 0 ?
-                Math.round((bounced / redirected) * 100 * 10) / 10 : 0;
-        }
-
-        // Top 5 Programs by application count
-        let programsQuery = supabaseAdmin
-            .from('applications')
-            .select(`
-                program_id,
-                programs!inner(name, universities!inner(name))
-            `);
-        programsQuery = applyDateFilter(programsQuery);
-        const { data: programData } = await programsQuery;
-
-        const programCounts = {};
-        programData?.forEach(app => {
-            const programName = app.programs?.name || 'Unknown Program';
-            const universityName = app.programs?.universities?.name || 'Unknown University';
-            const key = `${programName} - ${universityName}`;
-            programCounts[key] = (programCounts[key] || 0) + 1;
-        });
-        const top5Programs = Object.entries(programCounts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([name, count]) => ({ name, count }));
-
-        // Top 5 universities by program count (keeping existing for compatibility)
-        const { data: topUniversities } = await supabaseAdmin
-            .from('programs')
-            .select('university_id, universities(name)')
-            .limit(100);
-
-        const uniCounts = {};
-        topUniversities?.forEach(p => {
-            const name = p.universities?.name || 'Unknown';
-            uniCounts[name] = (uniCounts[name] || 0) + 1;
-        });
-        const top5Universities = Object.entries(uniCounts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([name, count]) => ({ name, count }));
 
         return {
             quizStarts: quizStarts || 0,
@@ -181,14 +108,11 @@ class AdminService {
                 ? ((quizCompletions / quizStarts) * 100).toFixed(1)
                 : 0,
             totalUsers: totalUsers || 0,
-            totalApplications: totalApplications || 0,
-            avgDocsPerUser: avgDocsPerUser.toFixed(1),
-            avgQuizToApplication: avgQuizToApplication,
-            applicationCompletionRate: applicationCompletionRate,
-            emailConfirmationRate: emailConfirmationRate,
-            bounceRate: bounceRate,
-            top5Universities,
-            top5Programs
+            myApplicationsTotal: myApplicationsTotal || 0,
+            myApplicationsSaved: myApplicationsSaved || 0,
+            myApplicationsApplied: myApplicationsApplied || 0,
+            top5MyApplicationUniversities,
+            top5MyApplicationPrograms
         };
     }
 

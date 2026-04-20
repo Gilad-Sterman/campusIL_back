@@ -131,15 +131,42 @@ npm run dev
 - `POST /api/quiz/submit` - Submit quiz answers
 - `GET /api/quiz/results/:userId` - Get user quiz results
 
-### Applications & Documents
-- `GET /api/applications` - Get user applications
-- `POST /api/applications` - Create new application
-- `PUT /api/applications/:id` - Update application
-- `POST /api/documents/upload` - Upload documents
-- `GET /api/documents/:id` - Get document
+### Applications (legacy `applications` table)
+Multi-step apply flow (basic info, etc.) — still available for existing clients; **not** the MVP “My Applications” model.
+
+- `GET /api/applications` — List user’s legacy applications
+- `POST /api/applications` — Create legacy application
+- `PUT /api/applications/:id` — Update legacy application
+- `DELETE /api/applications/:id` — Delete legacy application
+- `GET /api/applications/status` — Duplicate check by `program_id` / `university_id`
+- `PATCH /api/applications/info` — Step-2 basic info
+
+**Completion / documents:** There is **no** server-side rule that blocks updates to `user_applications` or legacy `applications` based on uploaded documents. Legacy `docs_uploaded` exists only as a status value on the `applications` table; admin reporting may still reference it ([`admin.service.js`](services/admin.service.js)).
+
+### Deprecated — document pipeline (HTTP **410 Gone**)
+
+These endpoints return **`410`** with body `{ success: false, error: "...", code: "DOCUMENT_PIPELINE_RETIRED" }`. Use **`/api/user-applications`** for MVP instead.
+
+| Method | Path | Notes |
+|--------|------|--------|
+| * | `/api/documents` | All subpaths (upload, scan-status, view-url, etc.) |
+| `GET` | `/api/applications/documents/:applicationId` | |
+| `POST` | `/api/applications/documents` | |
+| `GET` | `/api/programs/:id/required-documents` | |
+
+**Frontend:** Remove or stub calls to the above (e.g. profile “Required Documents” tab, `documentApi`, apply-flow document step) in the same sprint as this change to avoid 410 errors in the UI.
+
+### MVP — My Applications (`user_applications`)
+Requires authentication (`Authorization: Bearer <token>`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/user-applications` | List current user’s saved/applied programs (with program and university joins) |
+| `POST` | `/api/user-applications` | Add a program; body: `{ "program_id", "university_id" }` (must match the program’s university). Duplicate returns **409**. |
+| `PATCH` | `/api/user-applications/:id` | Update `status` (`saved` \| `applied`) and/or `external_link` |
 
 ### Admin Panel
-- `GET /api/admin/dashboard` - Admin dashboard data
+- `GET /api/admin/dashboard` - Admin dashboard data (query: `startDate`, `endDate` ISO strings). Response: quiz stats, `totalUsers`, My Applications counts and top lists from `user_applications` (`myApplicationsTotal`, `myApplicationsSaved`, `myApplicationsApplied`, `top5MyApplicationUniversities`, `top5MyApplicationPrograms`).
 - `GET /api/admin/users` - Manage users
 - `POST /api/admin/staff/invite` - Invite staff members
 - `GET /api/admin/universities` - Manage universities
@@ -178,7 +205,8 @@ The application uses Supabase PostgreSQL with Row Level Security (RLS) policies.
 - **programs**: Academic program details
 - **quiz_questions**: Quiz system questions
 - **quiz_results**: User quiz responses and results
-- **applications**: User applications to programs
+- **applications**: Legacy multi-step applications to programs
+- **user_applications**: MVP “Add to My Applications” (saved / applied; see `src/DB/DBSetup.sql` and `migration_phase1_user_applications_mvp.sql`)
 - **documents**: File uploads and document management
 
 ## 🔒 Security Features

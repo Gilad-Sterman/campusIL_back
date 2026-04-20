@@ -2,12 +2,12 @@
 -- Generated from closest-production-ready-programs.md analysis
 -- Run this after insert_universities.sql
 
--- University IDs provided:
--- Tel Aviv University: d4bffbb5-c08d-4419-8b7e-f0346e7420dc
--- Ben-Gurion University: 8a456ccc-f0ee-4ced-88c1-3552638fba7e  
--- Haifa University: cc15c963-e1f7-444b-a209-4ab525b43131
--- Reichman University (IDC): d4308adf-17e5-461f-8566-389d37e4ac04
--- Hebrew University: 04efd7bd-33ae-488b-9972-7365029974d0
+-- University IDs (from universities_rows.json, match by name):
+-- Hebrew University: 0d62477c-9087-4b88-a997-1a9f0d932578
+-- Tel Aviv University: 3441661b-a045-48b6-b659-e02e752e9834
+-- Ben-Gurion Universtiy: 88278c48-1243-44d3-8ce4-fb6b49f7e01c
+-- Haifa University: bc03d9a8-69cb-49dc-b833-72ef78948945
+-- Reichman University (IDC): d7b2ee06-02ba-4ec0-815f-5b87a0f4c9fa
 
 INSERT INTO programs (
     university_id, 
@@ -25,7 +25,7 @@ INSERT INTO programs (
 ) VALUES
 
 -- 1) Business Administration & English - Double Major (BA) — Hebrew University
-('04efd7bd-33ae-488b-9972-7365029974d0', 
+('0d62477c-9087-4b88-a997-1a9f0d932578', 
  'Business Administration & English - Double Major', 
  'bachelor', 
  'Business, Management, Communications & Economics', 
@@ -39,7 +39,7 @@ INSERT INTO programs (
  'active'),
 
 -- 2) Business Administration & Liberal Arts - Double Major (BA) — Hebrew University  
-('04efd7bd-33ae-488b-9972-7365029974d0', 
+('0d62477c-9087-4b88-a997-1a9f0d932578', 
  'Business Administration & Liberal Arts - Double Major', 
  'bachelor', 
  'Business, Management, Communications & Economics', 
@@ -53,7 +53,7 @@ INSERT INTO programs (
  'active'),
 
 -- 3) English & Liberal Arts - Double Major (BA) — Hebrew University
-('04efd7bd-33ae-488b-9972-7365029974d0', 
+('0d62477c-9087-4b88-a997-1a9f0d932578', 
  'English & Liberal Arts - Double Major', 
  'bachelor', 
  'English & Lingustics', 
@@ -72,7 +72,7 @@ INSERT INTO programs (
 -- Reichman University (IDC) Bachelor Programs
 
 -- 4) Economics, Entrepreneurship & Data Science (BSc) — Reichman University (IDC)
-('d4308adf-17e5-461f-8566-389d37e4ac04',
+('d7b2ee06-02ba-4ec0-815f-5b87a0f4c9fa',
  'Economics, Entrepreneurship & Data Science',
  'bachelor',
  'Business, Management, Communications & Economics',
@@ -86,7 +86,7 @@ INSERT INTO programs (
  'active'),
 
 -- 5) Entrepreneurship & Computer Science (BSc) — Reichman University (IDC)
-('d4308adf-17e5-461f-8566-389d37e4ac04',
+('d7b2ee06-02ba-4ec0-815f-5b87a0f4c9fa',
  'Entrepreneurship & Computer Science',
  'bachelor',
  'Computer Science & Technology',
@@ -100,7 +100,7 @@ INSERT INTO programs (
  'active'),
 
 -- 6) Business & Economics - Double Major (BA) — Reichman University (IDC)
-('d4308adf-17e5-461f-8566-389d37e4ac04',
+('d7b2ee06-02ba-4ec0-815f-5b87a0f4c9fa',
  'Business & Economics - Double Major',
  'bachelor',
  'Business, Management, Communications & Economics',
@@ -114,7 +114,7 @@ INSERT INTO programs (
  'active'),
 
 -- 7) Communications (BSc) — Reichman University (IDC)
-('d4308adf-17e5-461f-8566-389d37e4ac04',
+('d7b2ee06-02ba-4ec0-815f-5b87a0f4c9fa',
  'Communications',
  'bachelor',
  'Business, Management, Communications & Economics',
@@ -128,7 +128,7 @@ INSERT INTO programs (
  'active'),
 
 -- 8) Sustainability & Government (double major) (BSc + BA) — Reichman University (IDC)
-('d4308adf-17e5-461f-8566-389d37e4ac04',
+('d7b2ee06-02ba-4ec0-815f-5b87a0f4c9fa',
  'Sustainability & Government (double major)',
  'bachelor',
  'Government & Political Science',
@@ -144,7 +144,7 @@ INSERT INTO programs (
 -- Tel Aviv University Bachelor Programs
 
 -- 9) The Buchmann-Mehta School of Music International Program (BMus) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'The Buchmann-Mehta School of Music International Program',
  'bachelor',
  'Music & Performing Arts',
@@ -158,7 +158,7 @@ INSERT INTO programs (
  'active'),
 
 -- 10) Management & Liberal Arts (BA) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Management & Liberal Arts',
  'bachelor',
  'Business, Management, Communications & Economics',
@@ -172,7 +172,7 @@ INSERT INTO programs (
  'active'),
 
 -- 11) Dual Degree Liberal Arts Program: TAU & Columbia University (BA) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Dual Degree Liberal Arts Program: TAU & Columbia University',
  'bachelor',
  'Liberal Arts & General Studies',
@@ -186,7 +186,7 @@ INSERT INTO programs (
  'active'),
 
 -- 12) Liberal Arts (BA) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Liberal Arts',
  'bachelor',
  'Liberal Arts & General Studies',
@@ -202,7 +202,7 @@ INSERT INTO programs (
 -- Master's Programs
 
 -- 13) International Relations with Warsaw University (MA) — Haifa University
-('cc15c963-e1f7-444b-a209-4ab525b43131',
+('bc03d9a8-69cb-49dc-b833-72ef78948945',
  'International Relations with Warsaw University',
  'master',
  'Government & Political Science',
@@ -218,7 +218,7 @@ INSERT INTO programs (
 -- Tel Aviv University Master's Programs
 
 -- 14) Music International Program at the Buchmann‑Mehta School of Music (MMus) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Music International Program at the Buchmann‑Mehta School of Music',
  'master',
  'Music & Performing Arts',
@@ -232,7 +232,7 @@ INSERT INTO programs (
  'active'),
 
 -- 15) Coller Deep Tech (MBA) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Coller Deep Tech',
  'master',
  'Business, Management, Communications & Economics',
@@ -246,7 +246,7 @@ INSERT INTO programs (
  'active'),
 
 -- 16) Sofaer Global (MBA) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Sofaer Global',
  'master',
  'Business, Management, Communications & Economics',
@@ -260,7 +260,7 @@ INSERT INTO programs (
  'active'),
 
 -- 17) Documentary Cinema (MFA) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Documentary Cinema',
  'master',
  'Film & Media Studies',
@@ -274,7 +274,7 @@ INSERT INTO programs (
  'active'),
 
 -- 18) Musicology (MMus) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Musicology',
  'master',
  'Music & Performing Arts',
@@ -288,7 +288,7 @@ INSERT INTO programs (
  'active'),
 
 -- 19) Biomedical Engineering (MSc) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Biomedical Engineering',
  'master',
  'Engineering & Technology',
@@ -302,7 +302,7 @@ INSERT INTO programs (
  'active'),
 
 -- 20) Environmental Studies (MA) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Environmental Studies',
  'master',
  'Environmental Science & Sustainability',
@@ -316,7 +316,7 @@ INSERT INTO programs (
  'active'),
 
 -- 21) Sustainable Development (MA) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Sustainable Development',
  'master',
  'Environmental Science & Sustainability',
@@ -330,7 +330,7 @@ INSERT INTO programs (
  'active'),
 
 -- 22) Conflict Resolution and Mediation (MA) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Conflict Resolution and Mediation',
  'master',
  'Government & Political Science',
@@ -344,7 +344,7 @@ INSERT INTO programs (
  'active'),
 
 -- 23) Cyber Politics & Government (MA) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Cyber Politics & Government',
  'master',
  'Government & Political Science',
@@ -358,7 +358,7 @@ INSERT INTO programs (
  'active'),
 
 -- 24) Disaster Management (MDM) — Tel Aviv University
-('d4bffbb5-c08d-4419-8b7e-f0346e7420dc',
+('3441661b-a045-48b6-b659-e02e752e9834',
  'Disaster Management',
  'master',
  'Emergency Management & Public Safety',

@@ -2,6 +2,7 @@ import express from 'express';
 import applicationController from '../controllers/application.controller.js';
 import { authenticateUser } from '../middleware/auth.js';
 import { validateUUID } from '../middleware/validation.js';
+import { documentPipelineGone } from '../middleware/gone.js';
 
 const router = express.Router();
 
@@ -17,11 +18,13 @@ router.get('/status', applicationController.getApplicationStatus);
 // PATCH /api/applications/info - Update application basic info (Step 2)
 router.patch('/info', applicationController.updateApplicationInfo);
 
-// GET /api/applications/documents/:applicationId - Get application documents
-router.get('/documents/:applicationId', validateUUID('applicationId'), applicationController.getApplicationDocuments);
-
-// POST /api/applications/documents - Upload application document
-router.post('/documents', applicationController.uploadDocument);
+// GET/POST /api/applications/documents* — retired (HTTP 410); use /api/user-applications for MVP
+router.get(
+  '/documents/:applicationId',
+  validateUUID('applicationId'),
+  documentPipelineGone
+);
+router.post('/documents', documentPipelineGone);
 
 // GET /api/applications/:id - Get specific application
 router.get('/:id', validateUUID('id'), applicationController.getApplicationById);
