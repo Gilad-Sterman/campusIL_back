@@ -170,7 +170,9 @@ Requires authentication (`Authorization: Bearer <token>`).
 - `GET /api/admin/users` - Manage users
 - `POST /api/admin/staff/invite` - Invite staff members
 - `GET /api/admin/universities` - Manage universities
-- `GET /api/admin/programs` - Manage programs
+- `GET /api/admin/programs` - List/filter programs
+- `POST /api/admin/programs` - Create program (`doc_requirements` optional; MVP sends `[]` and does not require document lists)
+- `PUT /api/admin/programs/:id` - Update program (same: `doc_requirements` optional)
 
 ### Other Services
 - `GET /api/search` - Search functionality
