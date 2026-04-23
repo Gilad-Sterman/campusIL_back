@@ -501,7 +501,7 @@ class AdminController {
         try {
             const programData = req.body;
 
-            // Required fields validation (only application_deadline, tuition_override_usd, program_image are optional)
+            // Required fields validation (application_deadline, tuition_override_usd, program_image, doc_requirements optional)
             const requiredFields = {
                 name: 'Program title',
                 university_id: 'University',
@@ -514,7 +514,6 @@ class AdminController {
                 application_url: 'Application URL',
                 tuition_usd: 'Tuition',
                 description: 'Description',
-                doc_requirements: 'Required documents',
                 status: 'Status'
             };
 

@@ -297,16 +297,16 @@ applications (1) ←→ (*) documents
 | `duration_years` | INTEGER | NULL | Program length in years |
 | `tuition_usd` | INTEGER | NULL | Annual tuition in USD |
 | `description` | TEXT | NULL | Program description and highlights |
-| `requirements` | JSONB | NULL | Application requirements and prerequisites |
+| `requirements` | JSONB | NULL | Application requirements and prerequisites (e.g. deadline); not used for per-program document upload in MVP |
+| `doc_requirements` | TEXT[] | NULL | Legacy column; optional and not required for admin program create/update in MVP (may be empty) |
 | `application_url` | TEXT | NULL | Direct link to program application |
 | `scoring_data` | JSONB | DEFAULT '{}' | Program matching scores and prerequisites for quiz algorithm |
 | `created_at` | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | Record creation timestamp |
 
 **JSONB Structure Example**:
 ```json
-// requirements field
+// requirements field (example; MVP does not rely on a documents list here)
 {
-  "documents": ["transcript", "cv", "personal_statement", "passport"],
   "min_gpa": 3.0,
   "language_requirements": {
     "english": "IELTS 6.5 or TOEFL 90",
@@ -359,7 +359,7 @@ Domain (5 hardcoded options)
 
 **Key Points**:
 - Links to universities via foreign key with CASCADE delete
-- JSONB requirements allow flexible requirement structures
+- JSONB `requirements` allow flexible structures; `doc_requirements` is not enforced on program creation in MVP
 - Publicly readable for program discovery
 - Domain field enables grouping programs for discovery pages
 - Career horizon describes potential career paths
