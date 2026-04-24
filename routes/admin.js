@@ -21,6 +21,7 @@ router.get('/dashboard', adminProtected, adminController.getDashboardStats);
 // USERS
 // =============================================
 router.get('/users', adminProtected, adminController.getUsers);
+router.get('/users/export', adminProtected, adminController.exportUsers);
 router.get('/users/:id', adminProtected, validateUUID('id'), adminController.getUserById);
 router.put('/users/:id/status', adminEditProtected, adminController.updateUserStatus);
 router.put('/users/:id/role', adminEditProtected, adminController.updateUserRole);

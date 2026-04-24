@@ -221,6 +221,106 @@ class AdminService {
         return { users, total: count, page, limit };
     }
 
+    async getUsersForExport({ search = '', status = '' }) {
+        let query = supabaseAdmin
+            .from('users')
+            .select(`
+                id, email, first_name, last_name, phone, country, role, status, created_at, updated_at, date_of_birth,
+                applications(id, status)
+            `);
+
+        if (search) {
+            query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+        }
+
+        if (status) {
+            query = query.eq('status', status);
+        }
+
+        // Only export students
+        query = query.eq('role', 'student').order('created_at', { ascending: false });
+
+        const { data, error } = await query;
+
+        if (error) throw new Error(`Failed to fetch users for export: ${error.message}`);
+
+        if (!data || data.length === 0) {
+            return [];
+        }
+
+        // Fetch quiz, concierge, and document status for the returned users
+        const userIds = data.map(user => user.id);
+
+        const [answersResult, progressResult, appointmentsResult, documentsResult] = await Promise.all([
+            supabaseAdmin.from('quiz_answers').select('user_id').in('user_id', userIds),
+            supabaseAdmin.from('quiz_progress').select('user_id').in('user_id', userIds),
+            supabaseAdmin.from('appointments')
+                .select('user_id, status, scheduled_at')
+                .in('user_id', userIds)
+                .order('scheduled_at', { ascending: false }),
+            supabaseAdmin.from('documents')
+                .select('user_id, status')
+                .in('user_id', userIds)
+        ]);
+
+        const completedUserIds = new Set(answersResult.data?.map(a => a.user_id) || []);
+        const startedUserIds = new Set(progressResult.data?.map(p => p.user_id) || []);
+
+        // Map appointments by user_id
+        const userAppointments = {};
+        appointmentsResult.data?.forEach(app => {
+            if (!userAppointments[app.user_id]) {
+                userAppointments[app.user_id] = app.status;
+            }
+        });
+
+        // Map documents by user_id
+        const userDocuments = {};
+        documentsResult.data?.forEach(doc => {
+            if (!userDocuments[doc.user_id]) {
+                userDocuments[doc.user_id] = [];
+            }
+            userDocuments[doc.user_id].push(doc.status);
+        });
+
+        // Transform data
+        return data.map(user => {
+            // Quiz Status
+            let quizStatus = 'not_started';
+            if (completedUserIds.has(user.id)) {
+                quizStatus = 'completed';
+            } else if (startedUserIds.has(user.id)) {
+                quizStatus = 'started';
+            }
+
+            // Concierge Status (latest appointment status)
+            const conciergeStatus = userAppointments[user.id] || 'none';
+
+            // Document Status (summary)
+            const docStatuses = userDocuments[user.id] || [];
+            let documentStatus = 'none';
+            if (docStatuses.length > 0) {
+                if (docStatuses.includes('pending_review')) {
+                    documentStatus = 'pending';
+                } else if (docStatuses.includes('rejected')) {
+                    documentStatus = 'rejected';
+                } else if (docStatuses.includes('approved')) {
+                    documentStatus = 'approved';
+                } else if (docStatuses.includes('uploaded')) {
+                    documentStatus = 'uploaded';
+                }
+            }
+
+            return {
+                ...user,
+                quizStatus,
+                conciergeStatus,
+                documentStatus,
+                applicationCount: user.applications?.length || 0
+            };
+        });
+    }
+
     async getUserById(userId) {
         // 1. Fetch user profile
         const { data: user, error: userError } = await supabaseAdmin
@@ -763,27 +863,93 @@ class AdminService {
     async bulkImportPrograms(programsArray) {
         const results = { created: 0, errors: [] };
 
-        for (const program of programsArray) {
+        const requiredFields = [
+            'name', 'universityName', 'degree_level', 
+            'degree_qualification', 'discipline', 'domain', 
+            'career_horizon', 'tuition_usd', 'application_url', 'description'
+        ];
+
+        for (let i = 0; i < programsArray.length; i++) {
+            const program = programsArray[i];
+            const rowNum = i + 1;
+
             try {
-                // Find university by name
-                const { data: uni } = await supabaseAdmin
+                // 1. Check required fields
+                const missing = requiredFields.filter(f => !program[f]);
+                if (missing.length > 0) {
+                    results.errors.push({ 
+                        row: rowNum, 
+                        program: program.name || 'Unknown', 
+                        error: `Missing required fields: ${missing.join(', ')}` 
+                    });
+                    continue;
+                }
+
+                // 2. Find university by name
+                const { data: uni, error: uniError } = await supabaseAdmin
                     .from('universities')
                     .select('id')
                     .ilike('name', program.universityName)
                     .single();
 
-                if (!uni) {
-                    results.errors.push({ row: program, error: 'University not found' });
+                if (uniError || !uni) {
+                    results.errors.push({ 
+                        row: rowNum, 
+                        program: program.name, 
+                        error: `University "${program.universityName}" not found` 
+                    });
                     continue;
                 }
 
-                await this.createProgram({
-                    ...program,
-                    university_id: uni.id
-                });
+                // 3. Prepare data
+                const programData = {
+                    university_id: uni.id,
+                    name: program.name.trim(),
+                    degree_level: program.degree_level.toLowerCase().trim(),
+                    degree_title: program.degree_title ? program.degree_title.trim() : null,
+                    degree_qualification: program.degree_qualification.trim(),
+                    discipline: program.discipline.trim(),
+                    domain: program.domain.trim(),
+                    career_horizon: program.career_horizon.trim(),
+                    tuition_usd: parseInt(program.tuition_usd),
+                    application_url: program.application_url.trim(),
+                    description: program.description.trim(),
+                    short_description: program.short_description ? program.short_description.trim() : null,
+                    duration_text: program.duration_text ? program.duration_text.trim() : null,
+                    living_cost_override_usd: program.living_cost_override_usd ? parseInt(program.living_cost_override_usd) : null,
+                    status: (program.status || 'active').trim(),
+                    field: (program.field || program.name).trim(), 
+                    image_url: program.image_url ? program.image_url.trim() : null
+                };
+
+                // Handle application_deadline if provided (save into requirements JSONB)
+                if (program.application_deadline) {
+                    programData.requirements = {
+                        application_deadline: program.application_deadline
+                    };
+                }
+
+                // 4. Insert
+                const { error: insertError } = await supabaseAdmin
+                    .from('programs')
+                    .insert(programData);
+
+                if (insertError) {
+                    results.errors.push({ 
+                        row: rowNum, 
+                        program: program.name, 
+                        error: `Database error: ${insertError.message}` 
+                    });
+                    continue;
+                }
+
                 results.created++;
             } catch (err) {
-                results.errors.push({ row: program, error: err.message });
+                results.errors.push({ 
+                    row: rowNum, 
+                    program: program.name || 'Unknown', 
+                    error: err.message 
+                });
             }
         }
 

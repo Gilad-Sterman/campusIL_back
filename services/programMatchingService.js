@@ -42,10 +42,12 @@ class ProgramMatchingService {
       // Step 6: Apply prerequisites and ranking logic (V3 has specific tie-breaking)
       const rankedPrograms = this._applyPrerequisitesAndRanking(studentProfile, processedPrograms, version);
       
-      // Step 7: Generate final output
-      const finalResults = rankedPrograms.map(program => 
-        this._generateProgramOutput(studentProfile, program, version)
-      );
+      // Step 7: Generate final output (Limit to top 9)
+      const finalResults = rankedPrograms
+        .slice(0, 9)
+        .map(program => 
+          this._generateProgramOutput(studentProfile, program, version)
+        );
 
       if (finalResults.length > 0) {
       } else {

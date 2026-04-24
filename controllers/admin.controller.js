@@ -1,4 +1,5 @@
 import adminService from '../services/admin.service.js';
+import userExportService from '../services/userExport.service.js';
 
 class AdminController {
     // =============================================
@@ -42,6 +43,27 @@ class AdminController {
             });
         } catch (error) {
             console.error('AdminController.getUsers error:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    async exportUsers(req, res) {
+        try {
+            const { search, status } = req.query;
+            const users = await adminService.getUsersForExport({
+                search: search || '',
+                status: status || ''
+            });
+
+            res.status(200).json({
+                success: true,
+                data: users
+            });
+        } catch (error) {
+            console.error('AdminController.exportUsers error:', error);
             res.status(500).json({
                 success: false,
                 error: error.message
