@@ -16,37 +16,31 @@ export const V3_QUIZ_QUESTIONS = [
     required: true,
     config: {
       options: [
-        { value: 'BA/BSc', label: "Bachelor's degree (BA/BSc)" },
-        { value: 'MA/MSc/MBA', label: "Master's degree (MA/MSc/MBA)" }
+        { value: 'BA/BSc', label: "Bachelor's degree (BA/BSc)", icons: ['🎓'] },
+        { value: 'MA/MSc/MBA', label: "Master's degree (MA/MSc/MBA)", icons: ['🎓', '🌟'] }
       ]
     }
   },
   {
     id: 3,
-    key: 'MEET_NAME',
-    type: 'statement',
-    title: "Nice to meet you. Let's get to know each other.",
-    required: false
-  },
-  {
-    id: 4,
     key: 'student_headline',
     type: 'single_select',
+    preTitle: "Nice to meet you, {name}. Let's get to know each other.",
     title: "Imagine a journalist writes a story about you in 10 years. What's the headline?",
     required: false,
     config: {
       options: [
-        { value: 'HEADLINE_BUILT', label: 'Built something from nothing' },
-        { value: 'HEADLINE_CHANGED', label: 'Changed the rules of the game' },
-        { value: 'HEADLINE_UNDERSTOOD', label: 'Understood the world better than anyone' },
-        { value: 'HEADLINE_HELPED', label: 'Made other people\'s lives better' },
-        { value: 'HEADLINE_UNKNOWN', label: 'I don\'t know yet' }
+        { value: 'HEADLINE_BUILT', label: 'Built something from nothing', icons: ['🧱'] },
+        { value: 'HEADLINE_CHANGED', label: 'Changed the rules of the game', icons: ['🎲'] },
+        { value: 'HEADLINE_UNDERSTOOD', label: 'Understood the world better than anyone', icons: ['🌏'] },
+        { value: 'HEADLINE_HELPED', label: 'Made other people\'s lives better', icons: ['🦸'] },
+        { value: 'HEADLINE_UNKNOWN', label: 'I don\'t know yet', icons: ['😵‍💫'] }
       ],
       allowCustom: true
     }
   },
   {
-    id: 5,
+    id: 4,
     key: 'student_values',
     type: 'multi_select',
     title: "What matters most to you? Pick your top 3.",
@@ -55,38 +49,39 @@ export const V3_QUIZ_QUESTIONS = [
       minSelections: 3,
       maxSelections: 3,
       options: [
-        { value: 'VAL_ACHIEVEMENT', label: 'Achievement & recognition' },
-        { value: 'VAL_ADVENTURE', label: 'Adventure & new experiences' },
-        { value: 'VAL_KNOWLEDGE', label: 'Knowledge & understanding' },
-        { value: 'VAL_GROWTH', label: 'Personal growth' },
-        { value: 'VAL_RELATIONSHIPS', label: 'Close relationships' },
-        { value: 'VAL_FREEDOM', label: 'Freedom & independence' },
-        { value: 'VAL_STABILITY', label: 'Stability & security' },
-        { value: 'VAL_CREATIVE', label: 'Creative expression' },
-        { value: 'VAL_DIFFERENCE', label: 'Making a difference' },
-        { value: 'VAL_BELONGING', label: 'Belonging to a community' }
+        { value: 'VAL_ACHIEVEMENT', label: '🥇 Achievement & recognition' },
+        { value: 'VAL_ADVENTURE', label: '🏔 Adventure & new experiences' },
+        { value: 'VAL_KNOWLEDGE', label: '🧠 Knowledge & understanding' },
+        { value: 'VAL_GROWTH', label: '🌱 Personal growth' },
+        { value: 'VAL_RELATIONSHIPS', label: '🤝 Close relationships' },
+        { value: 'VAL_FREEDOM', label: '🗽 Freedom & independence' },
+        { value: 'VAL_STABILITY', label: '🛡️ Stability & security' },
+        { value: 'VAL_CREATIVE', label: '🦄 Creative expression' },
+        { value: 'VAL_DIFFERENCE', label: '❣️ Making a difference' },
+        { value: 'VAL_BELONGING', label: '👯 Belonging to a community' }
       ]
     }
   },
   {
-    id: 6,
+    id: 5,
     key: 'EXPLORE_WORK',
     type: 'statement',
-    title: "Now let's explore the kind of work that energizes you.",
+    title: "Let's get a sense of who you are.",
     description: "The next questions come from the O*NET Interest Profiler, a tool used by millions of people to understand their career strengths. For each activity, tell us how much you'd enjoy doing it.",
     config: {
       steps: [
-        "Ignore education requirements and money.",
-        "Just focus on interest.",
-        "Go with your gut instinct."
-      ]
+        "Explore different activities",
+        "How much do you enjoy them?",
+        "Discover your interests"
+      ],
+      icons: ['https://wdukbpwyysjbkdzjtguv.supabase.co/storage/v1/object/public/university-logos/Group.svg', 'https://wdukbpwyysjbkdzjtguv.supabase.co/storage/v1/object/public/university-logos/Group%20(1).svg', 'https://wdukbpwyysjbkdzjtguv.supabase.co/storage/v1/object/public/university-logos/Icons.svg']
     },
     required: false
   },
 
-  // --- RIASEC BLOCK 1 (ID 7-14) ---
+  // --- RIASEC BLOCK 1 (ID 6-13) ---
   {
-    id: 7,
+    id: 6,
     key: 'RIASEC_R_01',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Build kitchen cabinets',
@@ -94,7 +89,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 8,
+    id: 7,
     key: 'RIASEC_I_01',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Study ways to reduce water pollution',
@@ -102,7 +97,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 9,
+    id: 8,
     key: 'RIASEC_A_01',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Write scripts for movies or television shows',
@@ -110,7 +105,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 10,
+    id: 9,
     key: 'RIASEC_S_01',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Help people with personal or emotional problems',
@@ -118,7 +113,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 11,
+    id: 10,
     key: 'RIASEC_E_01',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Manage a retail store',
@@ -126,7 +121,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 12,
+    id: 11,
     key: 'RIASEC_C_01',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Develop a spreadsheet using computer software',
@@ -134,7 +129,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 13,
+    id: 12,
     key: 'RIASEC_R_02',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Assemble electronic parts',
@@ -142,7 +137,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 14,
+    id: 13,
     key: 'RIASEC_I_02',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Conduct chemical experiments',
@@ -150,17 +145,25 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 15,
+    id: 14,
     key: 'EXPLORE_PERSONALITY',
     type: 'statement',
-    title: "Great, thanks.",
-    description: "Now, let’s take the time to explore your personality and thinking style, from the widely used IPIP personality research project. Please tell us how much each statement sounds like you. Don’t overthink it.",
+    title: "Let’s explore how you think",
+    description: "Great suggestions start with getting to know you.",
+    config: {
+      steps: [
+        "Read each statement",
+        "Go with your gut",
+        "Don’t overthink it"
+      ],
+      icons: ['https://wdukbpwyysjbkdzjtguv.supabase.co/storage/v1/object/public/university-logos/svg1497.svg', 'https://wdukbpwyysjbkdzjtguv.supabase.co/storage/v1/object/public/university-logos/Group%20(2).svg', 'https://wdukbpwyysjbkdzjtguv.supabase.co/storage/v1/object/public/university-logos/Group%20(3).svg']
+    },
     required: false
   },
 
-  // --- OPENNESS BLOCK 1 (ID 16-25) ---
+  // --- OPENNESS BLOCK 1 (ID 15-24) ---
   {
-    id: 16,
+    id: 15,
     key: 'O_O1_01',
     type: 'likert',
     title: '"How much does this sound like you?" I have a vivid imagination',
@@ -168,7 +171,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 17,
+    id: 16,
     key: 'O_O2_01',
     type: 'likert',
     title: '"How much does this sound like you?" I believe in the importance of art',
@@ -176,7 +179,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 18,
+    id: 17,
     key: 'O_O3_01',
     type: 'likert',
     title: '"How much does this sound like you?" I experience my emotions intensely',
@@ -184,7 +187,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 19,
+    id: 18,
     key: 'O_O4_01',
     type: 'likert',
     title: '"How much does this sound like you?" I prefer variety to routine',
@@ -192,7 +195,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 20,
+    id: 19,
     key: 'O_O1_02',
     type: 'likert',
     title: '"How much does this sound like you?" I enjoy wild flights of fantasy',
@@ -200,7 +203,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 21,
+    id: 20,
     key: 'O_O2_02',
     type: 'likert',
     title: '"How much does this sound like you?" I see beauty in things that others might not notice',
@@ -208,7 +211,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 22,
+    id: 21,
     key: 'O_O3_02',
     type: 'likert',
     title: '"How much does this sound like you?" I feel others\' emotions',
@@ -216,7 +219,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 23,
+    id: 22,
     key: 'O_O4_02',
     type: 'likert',
     title: '"How much does this sound like you?" I seek adventure',
@@ -224,7 +227,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 24,
+    id: 23,
     key: 'O_O1_03',
     type: 'likert',
     title: '"How much does this sound like you?" I love to daydream',
@@ -232,25 +235,17 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 25,
+    id: 24,
     key: 'O_O2_03',
     type: 'likert',
     title: '"How much does this sound like you?" I love flowers and enjoy the beauty of nature',
     required: true,
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
-  {
-    id: 26,
-    key: 'DOING_GREAT',
-    type: 'statement',
-    title: "You’re doing great.",
-    description: "Tell us more.",
-    required: false
-  },
 
-  // --- RIASEC BLOCK 2 (ID 27-33) ---
+  // --- RIASEC BLOCK 2 (ID 25-31) ---
   {
-    id: 27,
+    id: 25,
     key: 'RIASEC_A_02',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Design artwork for magazines',
@@ -258,7 +253,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 28,
+    id: 26,
     key: 'RIASEC_S_02',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Teach an adult to read',
@@ -266,7 +261,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 29,
+    id: 27,
     key: 'RIASEC_E_02',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Sell merchandise at a department store',
@@ -274,7 +269,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 30,
+    id: 28,
     key: 'RIASEC_C_02',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Proofread records or forms',
@@ -282,7 +277,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 31,
+    id: 29,
     key: 'RIASEC_R_03',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Repair household appliances',
@@ -290,7 +285,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 32,
+    id: 30,
     key: 'RIASEC_I_03',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Develop a new medical treatment or procedure',
@@ -298,24 +293,17 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 33,
+    id: 31,
     key: 'RIASEC_A_03',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Compose or arrange music',
     required: true,
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
-  {
-    id: 34,
-    key: 'ALMOST_THERE',
-    type: 'statement',
-    title: "Almost there.",
-    required: false
-  },
 
-  // --- OPENNESS BLOCK 2 (ID 35-44) ---
+  // --- OPENNESS BLOCK 2 (ID 32-41) ---
   {
-    id: 35,
+    id: 32,
     key: 'O_O1_04',
     type: 'likert',
     title: '"How much does this sound like you?" I like to get lost in thought',
@@ -323,7 +311,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 36,
+    id: 33,
     key: 'O_O3_03',
     type: 'likert',
     title: '"How much does this sound like you?" I enjoy examining myself and my life',
@@ -331,7 +319,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 37,
+    id: 34,
     key: 'O_O4_03',
     type: 'likert',
     title: '"How much does this sound like you?" I like to begin new things',
@@ -339,7 +327,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 38,
+    id: 35,
     key: 'O_O5_01',
     type: 'likert',
     title: '"How much does this sound like you?" I love to read challenging material',
@@ -347,7 +335,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 39,
+    id: 36,
     key: 'O_O3_04',
     type: 'likert',
     title: '"How much does this sound like you?" I am passionate about causes',
@@ -355,7 +343,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 40,
+    id: 37,
     key: 'O_O4_04',
     type: 'likert',
     title: '"How much does this sound like you?" I like to visit new places',
@@ -363,7 +351,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 41,
+    id: 38,
     key: 'O_O5_02',
     type: 'likert',
     title: '"How much does this sound like you?" I love to think up new ways of doing things',
@@ -371,7 +359,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 42,
+    id: 39,
     key: 'O_O5_03',
     type: 'likert',
     title: '"How much does this sound like you?" I enjoy hearing new ideas',
@@ -379,7 +367,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 43,
+    id: 40,
     key: 'O_O5_04',
     type: 'likert',
     title: '"How much does this sound like you?" I can handle a lot of information',
@@ -387,24 +375,17 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
   {
-    id: 44,
+    id: 41,
     key: 'O_O2_04',
     type: 'likert',
     title: '"How much does this sound like you?" I love beautiful things',
     required: true,
     config: { min: 0, max: 2, labels: ['Not me', 'Maybe', "That's me"] }
   },
-  {
-    id: 45,
-    key: 'TWO_MORE',
-    type: 'statement',
-    title: "Two more sections to go.",
-    required: false
-  },
 
-  // --- RIASEC BLOCK 3 (ID 46-53) ---
+  // --- RIASEC BLOCK 3 (ID 42-49) ---
   {
-    id: 46,
+    id: 42,
     key: 'RIASEC_S_03',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Do volunteer work at a non-profit organization',
@@ -412,7 +393,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 47,
+    id: 43,
     key: 'RIASEC_E_03',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Start your own business',
@@ -420,7 +401,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 48,
+    id: 44,
     key: 'RIASEC_C_03',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Record business transactions and keep financial records',
@@ -428,7 +409,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 49,
+    id: 45,
     key: 'RIASEC_R_04',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Test the quality of parts before shipment',
@@ -436,7 +417,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 50,
+    id: 46,
     key: 'RIASEC_I_04',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Study the movement of planets',
@@ -444,7 +425,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 51,
+    id: 47,
     key: 'RIASEC_A_04',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Act in a movie',
@@ -452,7 +433,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 52,
+    id: 48,
     key: 'RIASEC_S_04',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Give career guidance to people',
@@ -460,24 +441,17 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 53,
+    id: 49,
     key: 'RIASEC_E_04',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Negotiate business contracts',
     required: true,
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
-  {
-    id: 54,
-    key: 'LAST_ROUND',
-    type: 'statement',
-    title: "Last round of activities.",
-    required: false
-  },
 
-  // --- RIASEC BLOCK 4 (ID 55-61) ---
+  // --- RIASEC BLOCK 4 (ID 50-56) ---
   {
-    id: 55,
+    id: 50,
     key: 'RIASEC_C_04',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Operate a calculator',
@@ -485,7 +459,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 56,
+    id: 51,
     key: 'RIASEC_R_05',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Lay brick or tile',
@@ -493,7 +467,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 57,
+    id: 52,
     key: 'RIASEC_I_05',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Examine blood samples using a microscope',
@@ -501,7 +475,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 58,
+    id: 53,
     key: 'RIASEC_A_05',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Play a musical instrument',
@@ -509,7 +483,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 59,
+    id: 54,
     key: 'RIASEC_S_05',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Supervise the activities of children at a camp',
@@ -517,7 +491,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 60,
+    id: 55,
     key: 'RIASEC_E_05',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Give talks or speeches',
@@ -525,7 +499,7 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 61,
+    id: 56,
     key: 'RIASEC_C_05',
     type: 'likert',
     title: '"How much would you enjoy this activity?" Record rent payments',
@@ -533,16 +507,24 @@ export const V3_QUIZ_QUESTIONS = [
     config: { min: 0, max: 4, labels: ['Strongly Dislike', 'Dislike', 'Unsure', 'Like', 'Strongly Like'] }
   },
   {
-    id: 62,
+    id: 57,
     key: 'STUDENT_EXPERIENCE',
     type: 'statement',
-    title: "Now that we’ve gotten to know you, let’s focus on your student experience.",
+    title: "let’s Explore your student journey",
+    config: {
+      steps: [
+        "Explore your student experience",
+        "What matters on campus",
+        "Think about your college years"
+      ],
+      icons: ['https://wdukbpwyysjbkdzjtguv.supabase.co/storage/v1/object/public/university-logos/Group%20(4).svg', 'https://wdukbpwyysjbkdzjtguv.supabase.co/storage/v1/object/public/university-logos/Group%2035.svg', 'https://wdukbpwyysjbkdzjtguv.supabase.co/storage/v1/object/public/university-logos/_x33_0.svg']
+    },
     required: false
   },
 
   // --- FINAL SECTION ---
   {
-    id: 63,
+    id: 58,
     key: 'student_campus_factors',
     type: 'multi_select',
     title: "What matters most in a campus? Select 3-7.",
@@ -551,71 +533,56 @@ export const V3_QUIZ_QUESTIONS = [
       minSelections: 3,
       maxSelections: 7,
       options: [
-        { value: 'CAMPUS_LIBRARY', label: 'Great library & study spaces' },
-        { value: 'CAMPUS_SUPPORT', label: 'Academic advising & tutoring' },
-        { value: 'CAMPUS_INTLSTUDENTS', label: 'International student community' },
-        { value: 'CAMPUS_SOCIAL', label: 'Social events & activities' },
-        { value: 'CAMPUS_GYM', label: 'Gym & sports facilities' },
-        { value: 'CAMPUS_DINING', label: 'Quality dining' },
-        { value: 'CAMPUS_HOUSING', label: 'Good student housing' },
-        { value: 'CAMPUS_CAREER', label: 'Career counseling' },
-        { value: 'CAMPUS_INTERNSHIP', label: 'Internship connections' },
-        { value: 'CAMPUS_ALUMNI', label: 'Strong alumni network' }
+        { value: 'CAMPUS_LIBRARY', label: '🏛️ Great library & study spaces' },
+        { value: 'CAMPUS_SUPPORT', label: '🧑‍🏫 Academic advising & tutoring' },
+        { value: 'CAMPUS_INTLSTUDENTS', label: '🌏 International student community' },
+        { value: 'CAMPUS_SOCIAL', label: '👯 Social events & activities' },
+        { value: 'CAMPUS_GYM', label: '🏋 Gym & sports facilities' },
+        { value: 'CAMPUS_DINING', label: '🍿️ Quality dining' },
+        { value: 'CAMPUS_HOUSING', label: '🛋️ Good student housing' },
+        { value: 'CAMPUS_CAREER', label: '🤝 Career counseling' },
+        { value: 'CAMPUS_INTERNSHIP', label: '🖇️ Internship connections' },
+        { value: 'CAMPUS_ALUMNI', label: '👥 Strong alumni network' }
       ]
     }
   },
   {
-    id: 64,
+    id: 59,
     key: 'student_priority',
     type: 'single_select',
     title: "What matters most in your university experience?",
     required: true,
     config: {
       options: [
-        { value: 'PRIORITY_ACADEMIC', label: 'Quality learning and academic excellence' },
-        { value: 'PRIORITY_SOCIAL', label: 'Social life and community' },
-        { value: 'PRIORITY_CAREER', label: 'Alumni/ae network and career opportunities' }
+        { value: 'PRIORITY_ACADEMIC', label: 'Quality learning and academic excellence', icons: ['📑'] },
+        { value: 'PRIORITY_SOCIAL', label: 'Social life and community', icons: ['👯'] },
+        { value: 'PRIORITY_CAREER', label: 'Alumni/ae network and career opportunities', icons: ['👥'] }
       ]
     }
   },
   {
-    id: 65,
+    id: 60,
     key: 'student_motivation',
     type: 'single_select',
     title: "What's most appealing about studying a full degree in Israel?",
     required: false,
     config: {
       options: [
-        { value: 'MOTIVE_CULTURAL', label: 'Cultural immersion and new experiences' },
-        { value: 'MOTIVE_ACADEMIC', label: 'Academic programs I can\'t find elsewhere' },
-        { value: 'MOTIVE_CAREER', label: 'Building a career in Israel or the Middle East' },
-        { value: 'MOTIVE_JEWISH', label: 'Connection to Jewish identity and heritage' }
+        { value: 'MOTIVE_CULTURAL', label: 'Cultural immersion and new experiences', icons: ['🇮🇱'] },
+        { value: 'MOTIVE_ACADEMIC', label: 'Academic programs I can\'t find elsewhere', icons: ['🦄'] },
+        { value: 'MOTIVE_CAREER', label: 'Building a career in Israel or the Middle East', icons: ['💼'] },
+        { value: 'MOTIVE_JEWISH', label: 'Connection to Jewish identity and heritage', icons: ['🕍'] }
       ],
       allowCustom: true
     }
   },
   {
-    id: 66,
-    key: 'LAST_QUESTION',
-    type: 'statement',
-    title: "Last question.",
-    description: "Take a moment to think about this one.",
-    required: false
-  },
-  {
-    id: 67,
+    id: 61,
     key: 'student_vision',
     type: 'text_field',
+    preTitle: "Last question. Take a moment to think about this one.",
     title: "If your degree in Israel goes exactly the way you hope, what does your life look like after graduation?",
     required: false,
     config: { placeholder: 'Your vision here...', maxLength: 1000, multiline: true }
-  },
-  {
-    id: 68,
-    key: 'ANALYZED_RESPONSES',
-    type: 'statement',
-    title: "We analyzed your responses.",
-    description: "You will be able to see degree suggestions in your email. After you have had a chance to review, you can book a call with our concierge team.",
-    required: false
   }
 ];

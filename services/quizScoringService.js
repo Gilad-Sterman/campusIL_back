@@ -61,7 +61,7 @@ class QuizScoringService {
     if (versionTag) return versionTag.version;
 
     // Check for V3-specific key footprint (guaranteed by updated frontend)
-    const v3Keys = ['MEET_NAME', 'EXPLORE_WORK', 'EXPLORE_PERSONALITY', 'RIASEC_R_01'];
+    const v3Keys = ['student_headline', 'EXPLORE_WORK', 'EXPLORE_PERSONALITY', 'RIASEC_R_01'];
     const hasV3Keys = answerEntries.some(a => v3Keys.includes(a.key));
     
     if (hasV3Keys) {

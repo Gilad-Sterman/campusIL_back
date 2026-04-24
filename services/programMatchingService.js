@@ -79,7 +79,7 @@ class ProgramMatchingService {
     const hasV3Keys = answers.some(a => v3Keys.includes(a.key));
     
     // Fallback ID check (New IDs for Openness begin at 16, Priority at 64)
-    const hasV3Id = answers.some(a => a.questionId === 16 || a.questionId === 64);
+    const hasV3Id = answers.some(a => a.questionId === 15 || a.questionId === 59);
     
     return (hasV3Keys || hasV3Id) ? 'v3' : 'v1';
   }
@@ -279,7 +279,7 @@ class ProgramMatchingService {
       : studentProfile.answers;
     
     // Find Q11 answer (field preference)
-    const fieldAnswer = answers.find(answer => answer.questionId === 11);
+    const fieldAnswer = answers.find(answer => answer.questionId === 10);
     
     return fieldAnswer?.answer || null;
   }
@@ -340,7 +340,7 @@ class ProgramMatchingService {
       ? JSON.parse(studentProfile.answers) 
       : studentProfile.answers;
     
-    const confidenceAnswer = answers.find(answer => answer.questionId === 12);
+    const confidenceAnswer = answers.find(answer => answer.questionId === 11);
     return confidenceAnswer?.answer || 3;
   }
   

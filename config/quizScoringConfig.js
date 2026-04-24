@@ -77,16 +77,16 @@ export const QUIZ_SCORING_CONFIG = {
     // V3 mapping (PathFinder V3)
     v3: {
       riasec: {
-        realistic: [7, 13, 31, 49, 56],
-        investigative: [8, 14, 32, 50, 57],
-        artistic: [9, 27, 33, 51, 58],
-        social: [10, 28, 46, 52, 59],
-        enterprising: [11, 29, 47, 53, 60],
-        conventional: [12, 30, 48, 55, 61]
+        realistic: [6, 12, 29, 45, 51],
+        investigative: [7, 13, 30, 46, 52],
+        artistic: [8, 25, 31, 47, 53],
+        social: [9, 26, 42, 48, 54],
+        enterprising: [10, 27, 43, 49, 55],
+        conventional: [11, 28, 44, 50, 56]
       },
-      openness: [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44],
-      priority: 64,
-      campusFactors: 63,
+      openness: [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41],
+      priority: 59,
+      campusFactors: 58,
       degreeLevel: 2,
       euclideanConstant: 9.798
     }

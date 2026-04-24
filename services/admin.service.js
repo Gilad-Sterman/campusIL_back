@@ -123,7 +123,7 @@ class AdminService {
         let query = supabaseAdmin
             .from('users')
             .select(`
-                id, email, first_name, last_name, phone, country, role, status, created_at, updated_at,
+                id, email, first_name, last_name, phone, country, role, status, created_at, updated_at, date_of_birth,
                 applications(id, status)
             `, { count: 'exact' });
 
@@ -361,15 +361,15 @@ class AdminService {
             .order('created_at', { ascending: false });
 
         if (error) throw new Error(`Failed to fetch staff: ${error.message}`);
-        
+
         // Transform data to include connection status
         const transformedData = data.map(user => {
             // concierges is an object, not an array
             const conciergeData = user.concierges;
-            const isConnected = user.role === 'concierge' && 
-                               conciergeData && 
-                               conciergeData.calendar_connected_at !== null;
-            
+            const isConnected = user.role === 'concierge' &&
+                conciergeData &&
+                conciergeData.calendar_connected_at !== null;
+
             return {
                 ...user,
                 is_connected: isConnected,
@@ -423,10 +423,10 @@ class AdminService {
         // The redirectTo should point to our onboarding page
         // Use NODE_ENV to determine if we're in development or production
         const isDevelopment = process.env.NODE_ENV === 'development';
-        const frontendUrl = isDevelopment 
+        const frontendUrl = isDevelopment
             ? (process.env.FRONTEND_URL || 'http://localhost:3001')
             : (process.env.SITE_URL || 'http://localhost:3001');
-        
+
         const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
             redirectTo: `${frontendUrl}/admin/onboarding`,
             data: {
