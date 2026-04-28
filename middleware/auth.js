@@ -1,4 +1,4 @@
-import { supabase } from '../config/db.js';
+import { supabase, supabaseAdmin } from '../config/db.js';
 
 // Middleware to authenticate user with Supabase JWT
 export const authenticateUser = async (req, res, next) => {
@@ -24,8 +24,9 @@ export const authenticateUser = async (req, res, next) => {
       });
     }
 
-    // Get user profile from our users table
-    const { data: userProfile, error: profileError } = await supabase
+    // Get user profile from our users table using supabaseAdmin to bypass RLS
+    // This is required because the standard supabase client is a singleton and its session can be overwritten
+    const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', user.id)
@@ -157,7 +158,7 @@ export const optionalAuth = async (req, res, next) => {
     }
 
     // Get user profile
-    const { data: userProfile } = await supabase
+    const { data: userProfile } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', user.id)

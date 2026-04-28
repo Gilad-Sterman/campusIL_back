@@ -188,7 +188,7 @@ export const login = async (req, res) => {
     }
 
     // Get user profile
-    const { data: userProfile, error: profileError } = await supabase
+    const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', authData.user.id)
