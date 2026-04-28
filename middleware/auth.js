@@ -29,7 +29,7 @@ export const authenticateUser = async (req, res, next) => {
       .from('users')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError) {
       console.error('Error fetching user profile:', profileError);
@@ -161,7 +161,7 @@ export const optionalAuth = async (req, res, next) => {
       .from('users')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     req.user = userProfile ? { ...user, ...userProfile } : user;
     next();

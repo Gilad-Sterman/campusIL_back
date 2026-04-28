@@ -26,6 +26,7 @@ import { testConnection } from './config/db.js';
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1); // Trust the reverse proxy to get real IPs
 const PORT = process.env.PORT || 3001;
 
 // Security middleware

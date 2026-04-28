@@ -71,7 +71,7 @@ export const register = async (req, res) => {
       .from('users')
       .select('id')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (existingUser) {
       // Check if this user has already taken the quiz
@@ -192,7 +192,7 @@ export const login = async (req, res) => {
       .from('users')
       .select('*')
       .eq('id', authData.user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError) {
       console.error('Profile fetch error:', profileError);
