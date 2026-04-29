@@ -123,7 +123,7 @@ class AdminService {
         let query = supabaseAdmin
             .from('users')
             .select(`
-                id, email, first_name, last_name, phone, country, role, status, created_at, updated_at, date_of_birth,
+                id, email, first_name, last_name, phone, country, role, status, created_at, updated_at, date_of_birth, ever_been_to_israel, hebrew_proficiency,
                 applications(id, status)
             `, { count: 'exact' });
 
@@ -225,7 +225,7 @@ class AdminService {
         let query = supabaseAdmin
             .from('users')
             .select(`
-                id, email, first_name, last_name, phone, country, zip_code, role, status, created_at, updated_at, date_of_birth,
+                id, email, first_name, last_name, phone, country, zip_code, role, status, created_at, updated_at, date_of_birth, ever_been_to_israel, hebrew_proficiency,
                 applications(id, status)
             `);
 

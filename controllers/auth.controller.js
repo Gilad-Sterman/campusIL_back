@@ -13,6 +13,8 @@ const publicUserFromRow = (row) => {
     country: row.country,
     dateOfBirth: row.date_of_birth ?? null,
     zipCode: row.zip_code ?? null,
+    everBeenToIsrael: row.ever_been_to_israel ?? null,
+    hebrewProficiency: row.hebrew_proficiency ?? null,
     role: row.role,
     createdAt: row.created_at
   };
@@ -63,7 +65,9 @@ export const register = async (req, res) => {
       phone,
       country,
       dateOfBirth,
-      zipCode
+      zipCode,
+      everBeenToIsrael,
+      hebrewProficiency
     } = req.body;
 
     // Check if user already exists and has taken the quiz
@@ -115,7 +119,9 @@ export const register = async (req, res) => {
         phone: phone || null,
         country: country || null,
         date_of_birth: dateOfBirth,
-        zip_code: zipCode && String(zipCode).trim() ? String(zipCode).trim() : null
+        zip_code: zipCode && String(zipCode).trim() ? String(zipCode).trim() : null,
+        ever_been_to_israel: everBeenToIsrael !== undefined ? everBeenToIsrael : null,
+        hebrew_proficiency: hebrewProficiency || null
       })
       .select()
       .single();
@@ -316,7 +322,7 @@ export const updateProfile = async (req, res) => {
     }
 
     const userId = req.user.id;
-    const { firstName, lastName, phone, country, zipCode, dateOfBirth } = req.body;
+    const { firstName, lastName, phone, country, zipCode, dateOfBirth, everBeenToIsrael, hebrewProficiency } = req.body;
 
     const existingDob = req.user.date_of_birth;
 
@@ -325,6 +331,8 @@ export const updateProfile = async (req, res) => {
       last_name: lastName,
       phone: phone || null,
       country: country || null,
+      ever_been_to_israel: everBeenToIsrael !== undefined ? everBeenToIsrael : req.user.ever_been_to_israel,
+      hebrew_proficiency: hebrewProficiency !== undefined ? hebrewProficiency : req.user.hebrew_proficiency,
       updated_at: new Date().toISOString()
     };
 

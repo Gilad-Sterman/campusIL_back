@@ -510,7 +510,7 @@ export const V3_QUIZ_QUESTIONS = [
     id: 57,
     key: 'STUDENT_EXPERIENCE',
     type: 'statement',
-    title: "let’s Explore your student journey",
+    title: "Let’s explore your student journey.",
     config: {
       steps: [
         "Explore your student experience",

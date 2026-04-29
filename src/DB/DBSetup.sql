@@ -16,6 +16,8 @@ CREATE TABLE users (
     country TEXT,
     date_of_birth DATE,
     zip_code TEXT,
+    ever_been_to_israel BOOLEAN,
+    hebrew_proficiency TEXT CHECK (hebrew_proficiency IN ('none', 'basic', 'fluent')),
     role TEXT NOT NULL DEFAULT 'student',
     status TEXT NOT NULL DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

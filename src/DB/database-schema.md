@@ -40,6 +40,8 @@ applications (1) ←→ (*) documents
 | `country` | TEXT | NULL | User's country of origin |
 | `date_of_birth` | DATE | NULL | Date of birth; required for new signups (enforced in API), optional for legacy rows |
 | `zip_code` | TEXT | NULL | Postal / ZIP code (optional) |
+| `ever_been_to_israel` | BOOLEAN | NULL | Whether the user has ever been to Israel |
+| `hebrew_proficiency` | TEXT | CHECK IN ('none', 'basic', 'fluent') | User's Hebrew proficiency level |
 | `role` | TEXT | NOT NULL, DEFAULT 'student' | User role (student, concierge, admin) |
 | `status` | TEXT | NOT NULL, DEFAULT 'active' | Account status (e.g. active) |
 | `created_at` | TIMESTAMP WITH TIME ZONE | DEFAULT NOW() | Account creation timestamp |
