@@ -8,29 +8,29 @@ class QuizScoringService {
   calculateScoring(answerEntries = []) {
     // Detect version
     const version = this._detectVersion(answerEntries);
-    
+
     if (version === 'v3') {
       return this._calculateV3Scoring(answerEntries);
     }
 
     const scoring = buildDefaultScoring();
     const sectionWeights = this._deriveSectionWeights(answerEntries);
-    
+
     // Calculate personality scores
     const conscientiousnessScore = this._calculateConscientiousness(answerEntries, version);
     const opennessScore = this._calculateOpenness(answerEntries, version);
-    
+
     // Calculate RIASEC scores (will be null for current 40-question quiz)
     const riasecScores = this._calculateRiasec(answerEntries, version);
 
-    
+
     // Update scoring object
     scoring.sections = {
       degree: { score: null, weight: sectionWeights.degree },
       campus: { score: null, weight: sectionWeights.campus },
       city: { score: null, weight: sectionWeights.city }
     };
-    
+
     scoring.personality.conscientiousness = conscientiousnessScore;
     scoring.personality.openness = opennessScore;
     scoring.riasec = riasecScores;
@@ -63,11 +63,11 @@ class QuizScoringService {
     // Check for V3-specific key footprint (guaranteed by updated frontend)
     const v3Keys = ['student_headline', 'EXPLORE_WORK', 'EXPLORE_PERSONALITY', 'RIASEC_R_01'];
     const hasV3Keys = answerEntries.some(a => v3Keys.includes(a.key));
-    
+
     if (hasV3Keys) {
       return 'v3';
     }
-    
+
     return 'v1';
   }
 
@@ -110,7 +110,7 @@ class QuizScoringService {
     // 5. Structure final output
     scoring.riasec = riasecScores;
     scoring.personality.openness = { score: studentOpenness, tag: studentOpenness >= 4 ? 'High' : (studentOpenness <= 2 ? 'Low' : 'Average') };
-    
+
     // Add sections to scoring for consistent DB storage
     scoring.sections = {
       academic: { weight: weights.academic },
@@ -237,7 +237,7 @@ class QuizScoringService {
 
     return null;
   }
-  
+
   /**
    * Calculate Big 5 Conscientiousness score from quiz answers
    * Based on lines 915-981 in quiz specs
@@ -245,14 +245,14 @@ class QuizScoringService {
   _calculateConscientiousness(answerEntries, version = 'v1') {
     const questionMap = QUIZ_SCORING_CONFIG.questionMapping[version]?.conscientiousness;
 
-    
+
     if (!questionMap || questionMap.length === 0) {
       return { score: null, tag: null };
     }
-    
+
     const answerMap = this._buildAnswerMap(answerEntries);
     const scores = [];
-    
+
     questionMap.forEach(({ key, reverse }) => {
       const answer = answerMap[key];
       if (answer !== undefined && answer !== null) {
@@ -266,15 +266,15 @@ class QuizScoringService {
         }
       }
     });
-    
+
     if (scores.length === 0) {
       return { score: null, tag: null };
     }
-    
+
     // Calculate average score
     const avgScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
     const roundedScore = Math.round(avgScore * 10) / 10;
-    
+
     // Generate personality tag based on thresholds
     const thresholds = QUIZ_SCORING_CONFIG.thresholds.conscientiousness;
     let tag;
@@ -285,10 +285,10 @@ class QuizScoringService {
     } else {
       tag = 'Average';
     }
-    
+
     return { score: roundedScore, tag };
   }
-  
+
   /**
    * Calculate Big 5 Openness score from quiz answers
    * Uses questions Q35-Q58 (IDs 39-62 in full quiz)
@@ -296,15 +296,15 @@ class QuizScoringService {
   _calculateOpenness(answerEntries, version = 'v1') {
     const questionMap = QUIZ_SCORING_CONFIG.questionMapping[version]?.openness;
 
-    
+
     if (!questionMap || questionMap.length === 0) {
       return { score: null, tag: null };
     }
-    
+
     const answerMap = this._buildAnswerMap(answerEntries);
     let totalScore = 0;
     let validAnswers = 0;
-    
+
     // Calculate openness score using the mapped questions
     questionMap.forEach(questionId => {
       const answer = answerMap[questionId];
@@ -313,14 +313,14 @@ class QuizScoringService {
         validAnswers++;
       }
     });
-    
+
     if (validAnswers === 0) {
       return { score: null, tag: null };
     }
-    
+
     // Calculate average score (1-5 scale)
     const averageScore = Number((totalScore / validAnswers).toFixed(2));
-    
+
     // Determine tag based on thresholds
     const thresholds = QUIZ_SCORING_CONFIG.thresholds.openness;
     let tag = 'Average';
@@ -329,10 +329,10 @@ class QuizScoringService {
     } else if (averageScore <= thresholds.low) {
       tag = 'Low';
     }
-    
+
     return { score: averageScore, tag };
   }
-  
+
   /**
    * Calculate RIASEC scores from quiz answers
    * Handles nested activity rating questions (Q65-Q67)
@@ -348,27 +348,27 @@ class QuizScoringService {
       enterprising: null,
       conventional: null
     };
-    
+
     // Check if any RIASEC questions are available
     const hasRiasecQuestions = Object.values(riasecMap).some(questions => questions.length > 0);
-    
+
     if (!hasRiasecQuestions) {
       return scores;
     }
-    
+
     // Build answer map for easy lookup
     const answerMap = this._buildAnswerMap(answerEntries);
-    
+
     // Calculate scores for each RIASEC category
     Object.keys(riasecMap).forEach(category => {
       const activities = riasecMap[category];
       if (activities.length === 0) {
         return;
       }
-      
+
       let totalScore = 0;
       let validAnswers = 0;
-      
+
       activities.forEach(({ questionId, activityId }) => {
         const questionAnswer = answerMap[questionId];
         if (questionAnswer && typeof questionAnswer === 'object' && questionAnswer[activityId] !== undefined) {
@@ -376,16 +376,16 @@ class QuizScoringService {
           validAnswers++;
         }
       });
-      
+
       // Calculate average score for this category (0-4 scale)
       if (validAnswers > 0) {
         scores[category] = Number((totalScore / validAnswers).toFixed(2));
       }
     });
-    
+
     return scores;
   }
-  
+
   /**
    * Build a map of questionId -> answer for easy lookup
    */
@@ -398,7 +398,7 @@ class QuizScoringService {
     });
     return answerMap;
   }
-  
+
   /**
    * Generate brilliance summary based on personality scores
    * Based on quiz specs personality analysis
@@ -407,45 +407,46 @@ class QuizScoringService {
     const isV3 = !!scoring.v3;
     const { conscientiousness, openness } = scoring.personality;
     const riasec = scoring.riasec;
-    
+
     let summary = "";
     const traits = [];
-    
+    let tag = "";
+
     // 1. Conscientiousness Analysis
     if (conscientiousness && conscientiousness.score !== null) {
       if (conscientiousness.tag === 'High') {
-        summary += "You demonstrate high conscientiousness, showing strong organization, reliability, and goal-oriented behavior. ";
-        traits.push('Organized', 'Reliable', 'Goal-oriented');
+        summary += "Leadership, persuasion, and getting things done through people seem to be where your energy naturally goes.";
+        traits.push('Enterprising', 'Organized', 'Reliable', 'Goal-oriented');
       } else if (conscientiousness.tag === 'Low') {
-        summary += "You show a more flexible, spontaneous approach to tasks and planning. ";
-        traits.push('Flexible', 'Spontaneous', 'Adaptable');
+        summary += "Connecting with people and making a real difference in their lives seems to be at the heart of what motivates you.";
+        traits.push('Social', 'Flexible', 'Spontaneous', 'Adaptable');
       } else {
-        summary += "You balance structure with flexibility in your approach to tasks and goals. ";
-        traits.push('Balanced', 'Practical', 'Adaptable');
+        summary += "You seem energized by questions, puzzles, and the drive to understand how things work.";
+        traits.push('Investigative', 'Balanced', 'Practical', 'Adaptable');
       }
     }
-    
+
     // 2. Openness Analysis
     if (openness && openness.score !== null) {
       if (openness.tag === 'High') {
-        summary += "Your high openness indicates strong curiosity, creativity, and appreciation for new experiences. ";
-        traits.push('Creative', 'Curious', 'Open-minded');
+        summary += "For people like you, thinking in images, stories, sounds, or forms often comes naturally, and creating something original is where the real energy is.";
+        traits.push('Artistic', 'Creative', 'Curious', 'Open-minded');
       } else if (openness.tag === 'Low') {
-        summary += "You prefer familiar approaches and practical solutions over experimental ideas. ";
-        traits.push('Practical', 'Traditional', 'Focused');
+        summary += "It seems that you are drawn to work that is hands-on, tangible, and grounded in the physical world.";
+        traits.push('Realistic', 'Practical', 'Traditional', 'Focused');
       } else {
-        summary += "You show moderate openness, balancing curiosity with practical considerations. ";
-        traits.push('Balanced', 'Thoughtful', 'Selective');
+        summary += "Order, precision, and reliability seem to be qualities you bring naturally to your work.";
+        traits.push('Conventional', 'Balanced', 'Thoughtful', 'Selective');
       }
     }
-    
+
     // 3. RIASEC Interest Analysis
     if (riasec) {
       const riasecScores = Object.entries(riasec)
         .filter(([_, score]) => score !== null)
         .sort(([_, a], [__, b]) => Number(b) - Number(a))
         .slice(0, 2);
-      
+
       if (riasecScores.length > 0) {
         const topInterest = riasecScores[0][0];
         const interestMap = {
@@ -456,7 +457,7 @@ class QuizScoringService {
           enterprising: { trait: 'Dynamic Leader', title: 'Dynamic Leader', description: 'leadership, persuasion, and business growth' },
           conventional: { trait: 'System Architect', title: 'System Architect', description: 'structured, efficient, and detail-oriented systems' }
         };
-        
+
         if (interestMap[topInterest]) {
           summary += `Professionally, you lean towards being a ${interestMap[topInterest].title}, thriving in ${interestMap[topInterest].description}. `;
           if (!traits.includes(interestMap[topInterest].trait)) {
@@ -465,7 +466,7 @@ class QuizScoringService {
         }
       }
     }
-    
+
     // 4. Weight Selection Analysis (V3 vs Legacy)
     if (isV3 && scoring.v3.weights) {
       const { academic, environment } = scoring.v3.weights;
@@ -486,7 +487,7 @@ class QuizScoringService {
         if (!traits.includes('Community-oriented')) traits.push('Community-oriented');
       }
     }
-    
+
     // 5. Final Validity Polish
     if (isV3 && scoring.v3.validity_check && !scoring.v3.validity_check.is_valid) {
       summary = "Your profile shows some interesting patterns that suggest an unconventional approach to the assessment. " + summary;
@@ -496,7 +497,7 @@ class QuizScoringService {
       summary = "Your responses show a balanced approach to your educational journey, valuing both academic growth and lifestyle factors.";
       traits.push('Thoughtful', 'Balanced', 'Decisive');
     }
-    
+
     return {
       summary: summary.trim(),
       traits: traits.slice(0, 3)
